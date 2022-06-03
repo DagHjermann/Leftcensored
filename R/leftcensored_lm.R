@@ -66,9 +66,9 @@
 #' @export
 leftcensored_lm <- function(data,
                             x = "x", 
-                            y = "y_cens", 
-                            uncensored = "y_aboveLOQ",
-                            threshold = "y_LOQ",
+                            y = "y_uncens", 
+                            uncensored = "uncensored",
+                            threshold = "threshold",
                             n.chains = 4, 
                             n.iter = 5000, 
                             n.burnin = 1000, 
@@ -95,8 +95,8 @@ model
 {
   # Likelihood
   for (i in 1:n) {
-    y_aboveLOQ[i] ~ dinterval(y_cens[i], y_LOQ[i])
-    y_cens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+    uncensored[i] ~ dinterval(y_uncens[i], threshold[i])
+    y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
 
   # Priors
@@ -108,9 +108,9 @@ model
   ### Set up data and parameters
   # Set up the data
   model_data <- list(n = nrow(data), 
-                    y_cens = data[[y]], 
-                    y_aboveLOQ = data[[uncensored]],
-                    y_LOQ = data[[threshold]],
+                    y_uncens = data[[y]], 
+                    uncensored = data[[uncensored]],
+                    threshold = data[[threshold]],
                     x = data[[x]])
   # Choose the parameters to watch
   model_parameters <-  c("intercept", "slope", "sigma")

@@ -9,9 +9,9 @@ leftcensored_simulate(
   intercept = 30,
   slope = -3,
   sigma = 4,
-  LOQ_1 = 20,
-  LOQ_2 = 5,
-  LOQ_change = 4,
+  threshold_1 = 20,
+  threshold_2 = 5,
+  threshold_change = 4,
   plot = TRUE,
   seed = NULL
 )
@@ -25,27 +25,27 @@ leftcensored_simulate(
 
 \item{sigma}{Standard deviance around the linear relationship (the s.d. of y for a given x)}
 
-\item{LOQ_1}{LOQ when x <= LOQ_change}
+\item{threshold_1}{threshold when x <= threshold_change}
 
-\item{LOQ_2}{LOQ when x > LOQ_change}
+\item{threshold_2}{threshold when x > threshold_change}
 
-\item{LOQ_change}{The level of x when LOQ changes from LOQ_1 to LOQ_2}
+\item{threshold_change}{The level of x when threshold changes from threshold_1 to threshold_2}
 
 \item{plot}{If TRUE, makes a plot of the data}
 
 \item{seed}{If you want the simulation to be reproducible, set seed to some integer}
 }
 \value{
-A data frame with 5 columns is returned invisibly. The variables are 1) x; 2) y (the real, unovserved value);
-3) y_cens (the observed y values, which equals y for values above LOQ, and is NA for values under LOQ);
-4) y_aboveLOQ (equals 0 for values below LOQ and 1 for values above LOQ); and 5) y_LOQ (the LOQ
+A data frame with 5 columns is returned invisibly. The variables are 1) x; 2) y (the real, unobserved value);
+3) y_uncens (the observed y values, which equals y for values above threshold, and is NA for values under threshold);
+4) uncensored (equals 0 for values below threshold and 1 for values above threshold); and 5) threshold (the threshold
 value for each observation).
 }
 \description{
 Simulates data where the real value y depends linearly on x, with random variation added.
-The values are censored, so we only observe the actual value above some limit LOQ.
-LOQ has two different levels depending on x. This is a typical situation if y is chemical
-measurements and x is time in years, as chemical methods tends to improve (decrease LOQ) over the years.
+The values are censored, so we only observe the actual value above some threshold.
+The threshold has two different levels depending on x. This is a typical situation if y is chemical
+measurements and x is time in years, as chemical methods tends to improve (decrease the limit of detection) over the years.
 }
 \examples{
 
@@ -53,7 +53,7 @@ measurements and x is time in years, as chemical methods tends to improve (decre
 leftcensored_simulate()
 
 # Modified parameters
-sim <- leftcensored_simulate(slope = -1.5, LOQ_1 = 27, LOQ_2 = 20)
+sim <- leftcensored_simulate(slope = -1.5, threshold_1 = 27, threshold_2 = 20)
 
 # The data object of the output can be directly used in lm_leftcensored 
 result <- leftcensored_lm(sim$data)

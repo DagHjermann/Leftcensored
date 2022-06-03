@@ -45,10 +45,10 @@ leftcensored_prepare <- function(data,
     ungroup() %>% 
     mutate(
       x = Year,
-      y_aboveLOQ = ifelse(is.na(Flag), 1, 0),
-      y_cens = y,   # ifelse(y_aboveLOD, y, NA)
-      y_LOQ = ifelse(y_aboveLOQ == 0, y, LOQ_per_year)
+      uncensored = ifelse(is.na(Flag), 1, 0),
+      y_uncens = y,   # ifelse(y_aboveLOD, y, NA)
+      threshold = ifelse(uncensored == 0, y, LOQ_per_year)
     ) %>%
-    select(x, y, Flag, y_aboveLOQ, y_cens, y_LOQ)
+    select(x, y, Flag, uncensored, y_uncens, threshold)
 }
 # prepare_data(df_test)

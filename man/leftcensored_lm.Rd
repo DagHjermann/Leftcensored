@@ -7,9 +7,9 @@
 leftcensored_lm(
   data,
   x = "x",
-  y = "y_cens",
-  uncensored = "y_aboveLOQ",
-  threshold = "y_LOQ",
+  y = "y_uncens",
+  uncensored = "uncensored",
+  threshold = "threshold",
   n.chains = 4,
   n.iter = 5000,
   n.burnin = 1000,
