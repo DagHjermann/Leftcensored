@@ -4,13 +4,7 @@
 \alias{leftcensored_lm}
 \title{Linear regression for left-censored data}
 \usage{
-leftcensored_lm(
-  data,
-  n.chains = n.chains,
-  n.iter = n.iter,
-  n.burnin = n.burnin,
-  n.thin = n.thin
-)
+leftcensored_lm(data, n.chains = 4, n.iter = 5000, n.burnin = 1000, n.thin = 2)
 }
 \arguments{
 \item{data}{The data must have four columns, named x, y_cens, y_aboveLOQ, y_LOQ. x is the
@@ -44,9 +38,14 @@ actual value is somewhere below LOQ. The variables need to have particular names
 prepare_data() to make your data ready for this function.
 }
 \examples{
-# Simulate data and estimaee regression
-sim <- leftcensored_simulate()
+# Simulate data and estimate regression
+sim <- leftcensored_simulate(n = 30)
 result <- leftcensored_lm(sim$data)
+
+# Get best estimates and plot its regression line on top of the plot  
+a <- result$summary$quantiles["intercept", "50\%"]
+b <- result$summary$quantiles["slope", "50\%"]
+abline(a, b, col = "green2")
 
 # Example with real data
 # Prepare the data

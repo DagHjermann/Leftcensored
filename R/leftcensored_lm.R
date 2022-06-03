@@ -27,9 +27,14 @@
 #' state-space models, this can be used for diagnostic plots of the model. See examples.
 #'   
 #' @examples
-#' # Simulate data and estimaee regression
-#' sim <- leftcensored_simulate()
+#' # Simulate data and estimate regression
+#' sim <- leftcensored_simulate(n = 30)
 #' result <- leftcensored_lm(sim$data)
+#' 
+#' # Get best estimates and plot its regression line on top of the plot  
+#' a <- result$summary$quantiles["intercept", "50%"]
+#' b <- result$summary$quantiles["slope", "50%"]
+#' abline(a, b, col = "green2")
 #' 
 #' # Example with real data
 #' # Prepare the data
@@ -54,10 +59,14 @@
 #' 
 #' @export
 leftcensored_lm <- function(data,
-                            n.chains = n.chains, # Number of different starting positions
-                            n.iter = n.iter, # Number of iterations
-                            n.burnin = n.burnin, # Number of iterations to remove at start
-                            n.thin = n.thin){
+                            x = "x", 
+                            y = "y_cens", 
+                            uncensored = "y_aboveLOQ",
+                            threshold = "y_LOQ",
+                            n.chains = 4, 
+                            n.iter = 5000, 
+                            n.burnin = 1000, 
+                            n.thin = 2){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -67,8 +76,8 @@ leftcensored_lm <- function(data,
   # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
   
   # Set all censored data to NA (if not already done)
-  # Imortant! Otherwise all LOQ stuff is ignored
-  data$y_cens[data$y_aboveLOQ == 0] <- NA
+  # Important! Otherwise all LOQ stuff is ignored
+  data[[y]][!data[[uncensored]] == 1] <- NA
   
   # Jags code to fit the model to the simulated data
   # Jags code to fit the model to the simulated data
@@ -91,10 +100,10 @@ model
   ### Set up data and parameters
   # Set up the data
   model_data <- list(n = nrow(data), 
-                    y_cens = data$y_cens, 
-                    y_aboveLOQ = data$y_aboveLOQ,
-                    y_LOQ = data$y_LOQ,
-                    x = data$x)
+                    y_cens = data[[y]], 
+                    y_aboveLOQ = data[[uncensored]],
+                    y_LOQ = data[[threshold]],
+                    x = data[[x]])
   # Choose the parameters to watch
   model_parameters <-  c("intercept", "slope", "sigma")
   
@@ -103,10 +112,10 @@ model
   model_run <- R2jags::jags(data = model_data,
                    parameters.to.save = model_parameters,
                    model.file=textConnection(model_code),
-                   n.chains=4, # Number of different starting positions
-                   n.iter = 5000, # Number of iterations
-                   n.burnin = 1000, # Number of iterations to remove at start
-                   n.thin=2) # Amount of thinning
+                   n.chains=n.chains,   # Number of different starting positions
+                   n.iter = n.iter,     # Number of iterations
+                   n.burnin = n.burnin, # Number of iterations to remove at start
+                   n.thin = n.thin)     # Amount of thinning
   
   # model_run
   model_mcmc <- coda::as.mcmc(model_run)
