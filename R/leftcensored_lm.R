@@ -5,9 +5,15 @@
 #' actual value is somewhere below LOQ. The variables need to have particular names, so you may want to use
 #' prepare_data() to make your data ready for this function.
 #' 
-#' @param data The data must have four columns, named x, y_cens, y_aboveLOQ, y_LOQ. x is the
-#' predictor (independent) variable; y_cens is the observed dependent data, which typically is NA for data below LOQ;
-#' y_aboveLOQ is 1 for data above LOQ; and y_LOQ is the LOQ (which may be constant, or may vary for each observation).
+#' @param data The data must have (at least) four columns: the predictor variable, the (uncensored) response variable, 
+#' a variable which is 1 for every uncensored observation, and a variable with the threhold of censoring for every censored observation
+#' @param x Variable name for the predictor (independent) variable        
+#' @param y Variable name for the response (dependent) variable. The censored values can be anything (they will be set to NA 
+#' depending on the values of \code{uncensored}    
+#' @param uncensored Variable name for a variable which is 1 for uncensored values and 0 for censored
+#' values.     
+#' @param threshold Variable name for a variable containing the threshold for censoring (e.g. for chemical data,
+#' limit of detection or limit of quantification).It may be constant, or it may vary for each observation censored observation.   
 #' @param n.chains The number of MCMC chains (replicates) to run. The default is 4. Using more than 1 chain enables us to say whether 
 #' @param n.iter The number of iterations for each MCMC chains. The default is 5000, which is usually sufficient for this application.
 #' @param n.burnin The number of iterations to remove at start of each MCMC chain, before results are collected for statistics. The default is 1000.
@@ -79,9 +85,11 @@ leftcensored_lm <- function(data,
   # Important! Otherwise all LOQ stuff is ignored
   data[[y]][!data[[uncensored]] == 1] <- NA
   
-  # Jags code to fit the model to the simulated data
-  # Jags code to fit the model to the simulated data
+  # All the values of 'uncensored' that are not 1, will be set to 
+  data[[uncensored]][!data[[uncensored]] == 1] <- 0
   
+  # Jags code to fit the model to the simulated data
+
   model_code = '
 model
 {

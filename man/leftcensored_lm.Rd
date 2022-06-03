@@ -4,12 +4,32 @@
 \alias{leftcensored_lm}
 \title{Linear regression for left-censored data}
 \usage{
-leftcensored_lm(data, n.chains = 4, n.iter = 5000, n.burnin = 1000, n.thin = 2)
+leftcensored_lm(
+  data,
+  x = "x",
+  y = "y_cens",
+  uncensored = "y_aboveLOQ",
+  threshold = "y_LOQ",
+  n.chains = 4,
+  n.iter = 5000,
+  n.burnin = 1000,
+  n.thin = 2
+)
 }
 \arguments{
-\item{data}{The data must have four columns, named x, y_cens, y_aboveLOQ, y_LOQ. x is the
-predictor (independent) variable; y_cens is the observed dependent data, which typically is NA for data below LOQ;
-y_aboveLOQ is 1 for data above LOQ; and y_LOQ is the LOQ (which may be constant, or may vary for each observation).}
+\item{data}{The data must have (at least) four columns: the predictor variable, the (uncensored) response variable,
+a variable which is 1 for every uncensored observation, and a variable with the threhold of censoring for every censored observation}
+
+\item{x}{Variable name for the predictor (independent) variable}
+
+\item{y}{Variable name for the response (dependent) variable. The censored values can be anything (they will be set to NA
+depending on the values of \code{uncensored}}
+
+\item{uncensored}{Variable name for a variable which is 1 for uncensored values and 0 for censored
+values.}
+
+\item{threshold}{Variable name for a variable containing the threshold for censoring (e.g. for chemical data,
+limit of detection or limit of quantification).It may be constant, or it may vary for each observation censored observation.}
 
 \item{n.chains}{The number of MCMC chains (replicates) to run. The default is 4. Using more than 1 chain enables us to say whether}
 
