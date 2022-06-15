@@ -14,6 +14,7 @@
 #' values.     
 #' @param threshold Variable name for a variable containing the threshold for censoring (e.g. for chemical data,
 #' limit of detection or limit of quantification).It may be constant, or it may vary for each observation censored observation.   
+#' @param resolution The number of points along the x axis used to describe the spline. 
 #' @param n.chains The number of MCMC chains (replicates) to run. The default is 4. Using more than 1 chain enables us to say whether 
 #' @param n.iter The number of iterations for each MCMC chains. The default is 5000, which is usually sufficient for this application.
 #' @param n.burnin The number of iterations to remove at start of each MCMC chain, before results are collected for statistics. The default is 1000.
@@ -69,6 +70,7 @@ leftcensored_lm <- function(data,
                             y = "y_uncens", 
                             uncensored = "uncensored",
                             threshold = "threshold",
+                            resolution = 50,
                             n.chains = 4, 
                             n.iter = 5000, 
                             n.burnin = 1000, 
@@ -88,6 +90,11 @@ leftcensored_lm <- function(data,
   # All the values of 'uncensored' that are not 1, will be set to 
   data[[uncensored]][!data[[uncensored]] == 1] <- 0
   
+  # For making predicted lines (with SE) 
+  xmin <- min(data[[x]], na.rm = TRUE)
+  xmax <- max(data[[x]], na.rm = TRUE)
+  x.out <- seq(xmin, xmax, length = resolution)
+
   # Jags code to fit the model to the simulated data
 
   model_code = '
@@ -97,6 +104,9 @@ model
   for (i in 1:n) {
     uncensored[i] ~ dinterval(y_uncens[i], threshold[i])
     y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+  }
+  for (i in 1:resolution) {
+    y.hat.out[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
   }
 
   # Priors
@@ -111,9 +121,11 @@ model
                     y_uncens = data[[y]], 
                     uncensored = data[[uncensored]],
                     threshold = data[[threshold]],
-                    x = data[[x]])
+                    x = data[[x]],
+                    x.out = x.out,
+                    resolution = resolution)
   # Choose the parameters to watch
-  model_parameters <-  c("intercept", "slope", "sigma")
+  model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
   
   ### Run model
   # Run the model
@@ -128,7 +140,22 @@ model
   # model_run
   model_mcmc <- coda::as.mcmc(model_run)
   # summary(model_mcmc) %>% str()
+  
+  summary <- summary(model_mcmc)
+
+    # Get predicted line 
+  quants <- summary$quantiles
+  length.out <- length(x.out)
+  pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
+  plot_data <- data.frame(
+    x = x.out, 
+    y = quants[pick_rownames,"50%"],
+    y_lo = quants[pick_rownames,"2.5%"],
+    y_hi = quants[pick_rownames,"97.5%"]
+  )
+  
   list(summary = summary(model_mcmc),
+       plot_data = plot_data,
        model = model_mcmc)
   
 }
