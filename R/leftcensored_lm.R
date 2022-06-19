@@ -162,23 +162,18 @@ model
 
 
 #' @export
-leftcensored_lm <- function(data,
-                            x = "x", 
-                            y = "y_uncens", 
-                            uncensored = "uncensored",
-                            threshold = "threshold",
-                            resolution = 50,
-                            n.chains = 4, 
-                            n.iter = 5000, 
-                            n.burnin = 1000, 
-                            n.thin = 2){
-  
-  # Censoring vs truncation:
-  # https://stats.stackexchange.com/a/144047/13380 
-  # Also see here for an alternative way to set up the model:
-  # https://stats.stackexchange.com/questions/6870/censoring-truncation-in-jags
-  # NOTE: CHECK THIS for multi-level statistical models:
-  # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
+
+leftcensored_lm_measerror <- function(data,
+                                      x = "x", 
+                                      y = "y_uncens", 
+                                      uncensored = "uncensored",
+                                      threshold = "threshold",
+                                      se_measurement = "se_measurement",
+                                      resolution = 50,
+                                      n.chains = 4, 
+                                      n.iter = 5000, 
+                                      n.burnin = 1000, 
+                                      n.thin = 2){
   
   # Set all censored data to NA (if not already done)
   # Important! Otherwise all LOQ stuff is ignored
@@ -199,7 +194,8 @@ model
 {
   # Likelihood
   for (i in 1:n) {
-    uncensored[i] ~ dinterval(y_uncens[i], threshold[i])
+    uncensored[i] ~ dinterval(y_uncens_error[i], threshold[i])
+    y_uncens_error[i] ~ dnorm(y_uncens[i], se_measurement[i]^2)
     y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
   for (i in 1:resolution) {
@@ -213,6 +209,9 @@ model
 }
 '
   ### Set up data and parameters
+  # y_measerror[i] <- se_measurement*abs(y_uncens[i])
+  # y_uncens_error[i] ~ dnorm(y_uncens[i], (0.1*abs(y_uncens[i])^2)
+  
   # Set up the data
   model_data <- list(n = nrow(data), 
                      y_uncens = data[[y]], 
@@ -220,7 +219,8 @@ model
                      threshold = data[[threshold]],
                      x = data[[x]],
                      x.out = x.out,
-                     resolution = resolution)
+                     resolution = resolution,
+                     se_measurement = data[[se_measurement]])
   # Choose the parameters to watch
   model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
   
@@ -256,5 +256,3 @@ model
        model = model_mcmc)
   
 }
-
-
