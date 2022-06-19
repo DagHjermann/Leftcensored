@@ -159,3 +159,102 @@ model
        model = model_mcmc)
   
 }
+
+
+#' @export
+leftcensored_lm <- function(data,
+                            x = "x", 
+                            y = "y_uncens", 
+                            uncensored = "uncensored",
+                            threshold = "threshold",
+                            resolution = 50,
+                            n.chains = 4, 
+                            n.iter = 5000, 
+                            n.burnin = 1000, 
+                            n.thin = 2){
+  
+  # Censoring vs truncation:
+  # https://stats.stackexchange.com/a/144047/13380 
+  # Also see here for an alternative way to set up the model:
+  # https://stats.stackexchange.com/questions/6870/censoring-truncation-in-jags
+  # NOTE: CHECK THIS for multi-level statistical models:
+  # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
+  
+  # Set all censored data to NA (if not already done)
+  # Important! Otherwise all LOQ stuff is ignored
+  data[[y]][!data[[uncensored]] == 1] <- NA
+  
+  # All the values of 'uncensored' that are not 1, will be set to 
+  data[[uncensored]][!data[[uncensored]] == 1] <- 0
+  
+  # For making predicted lines (with SE) 
+  xmin <- min(data[[x]], na.rm = TRUE)
+  xmax <- max(data[[x]], na.rm = TRUE)
+  x.out <- seq(xmin, xmax, length = resolution)
+  
+  # Jags code to fit the model to the simulated data
+  
+  model_code = '
+model
+{
+  # Likelihood
+  for (i in 1:n) {
+    uncensored[i] ~ dinterval(y_uncens[i], threshold[i])
+    y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+  }
+  for (i in 1:resolution) {
+    y.hat.out[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
+  }
+
+  # Priors
+  intercept ~ dnorm(0, 100^-2)
+  slope ~ dnorm(0, 100^-2)
+  sigma ~ dunif(0, 10)
+}
+'
+  ### Set up data and parameters
+  # Set up the data
+  model_data <- list(n = nrow(data), 
+                     y_uncens = data[[y]], 
+                     uncensored = data[[uncensored]],
+                     threshold = data[[threshold]],
+                     x = data[[x]],
+                     x.out = x.out,
+                     resolution = resolution)
+  # Choose the parameters to watch
+  model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
+  
+  ### Run model
+  # Run the model
+  model_run <- R2jags::jags(data = model_data,
+                            parameters.to.save = model_parameters,
+                            model.file=textConnection(model_code),
+                            n.chains=n.chains,   # Number of different starting positions
+                            n.iter = n.iter,     # Number of iterations
+                            n.burnin = n.burnin, # Number of iterations to remove at start
+                            n.thin = n.thin)     # Amount of thinning
+  
+  # model_run
+  model_mcmc <- coda::as.mcmc(model_run)
+  # summary(model_mcmc) %>% str()
+  
+  summary <- summary(model_mcmc)
+  
+  # Get predicted line 
+  quants <- summary$quantiles
+  length.out <- length(x.out)
+  pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
+  plot_data <- data.frame(
+    x = x.out, 
+    y = quants[pick_rownames,"50%"],
+    y_lo = quants[pick_rownames,"2.5%"],
+    y_hi = quants[pick_rownames,"97.5%"]
+  )
+  
+  list(summary = summary(model_mcmc),
+       plot_data = plot_data,
+       model = model_mcmc)
+  
+}
+
+
