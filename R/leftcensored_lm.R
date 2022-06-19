@@ -74,7 +74,8 @@ leftcensored_lm <- function(data,
                             n.chains = 4, 
                             n.iter = 5000, 
                             n.burnin = 1000, 
-                            n.thin = 2){
+                            n.thin = 2,
+                            detailed = FALSE){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -124,8 +125,14 @@ model
                     x = data[[x]],
                     x.out = x.out,
                     resolution = resolution)
+
   # Choose the parameters to watch
-  model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
+  if (detailed){
+    model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out",
+    "y_uncens", "uncensored")
+  } else {
+    model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
+  }
   
   ### Run model
   # Run the model
@@ -173,7 +180,8 @@ leftcensored_lm_measerror <- function(data,
                                       n.chains = 4, 
                                       n.iter = 5000, 
                                       n.burnin = 1000, 
-                                      n.thin = 2){
+                                      n.thin = 2,
+                                      detailed = TRUE){
   
   # Set all censored data to NA (if not already done)
   # Important! Otherwise all LOQ stuff is ignored
@@ -221,8 +229,14 @@ model
                      x.out = x.out,
                      resolution = resolution,
                      se_measurement = data[[se_measurement]])
+  
   # Choose the parameters to watch
-  model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
+  if (detailed){
+    model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out", 
+                           "y_uncens", "y_uncens_error", "uncensored")
+  } else {
+    model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
+  }
   
   ### Run model
   # Run the model
