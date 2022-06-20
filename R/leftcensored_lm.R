@@ -117,11 +117,20 @@ model
 }
 '
   ### Set up data and parameters
+  
+  # Normalize x and y
+  mean_y <- mean(data[[y]], na.rm = TRUE)
+  sd_y <- sd(data[[y]], na.rm = TRUE)
+  
+  # Functions for normalization and "un-normalization" (back-transformation)
+  norm_y <- function(x) (x-mean_y)/sd_y
+  unnorm_y <- function(x) x*sd_y + mean_y
+
   # Set up the data
   model_data <- list(n = nrow(data), 
-                    y_uncens = data[[y]], 
+                    y_uncens = norm_y(data[[y]]), 
                     uncensored = data[[uncensored]],
-                    threshold = data[[threshold]],
+                    threshold = norm_y(data[[threshold]]),
                     x = data[[x]],
                     x.out = x.out,
                     resolution = resolution)

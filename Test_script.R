@@ -65,7 +65,7 @@ lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 
 #
-# With measurement error, test vs without ----
+# With measurement error, test: without error vs. with different error sizes ----
 #
 
 # Simulate data  
@@ -94,12 +94,11 @@ names(quantiles) <- sprintf("SD = %.2f", sd_values)
 interc <- purrr::map_dfr(quantiles, ~.["intercept",], .id = "Model")
 slope <- purrr::map_dfr(quantiles, ~.["slope",], .id = "Model")
 
+# Plot slope estimates
 ggplot(slope, aes(Model, `50%`)) +
   geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`))
 
-i <- 1
-gg_list <- list()
-
+# Plot graphs for 
 for (i in 1:4){
   gg <- ggplot(sim_list[[i]]$data, aes(x, y, color = factor(uncensored))) +
     geom_point() +
