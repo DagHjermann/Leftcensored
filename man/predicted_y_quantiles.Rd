@@ -21,7 +21,7 @@ Get quantiles for y (given x), mean quantiles for all chains
 }
 \examples{
 sim <- leftcensored_simulate()
-result <- leftcensored_lm(sim$data)
+result <- lm_linear(sim$data)
 predicted_y_quantiles(2000, result$model)
 
 }

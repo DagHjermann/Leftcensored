@@ -21,7 +21,7 @@ Get regression quantiles for y for a number of x values within the range of x of
 }
 \examples{
 sim <- leftcensored_simulate()
-result <- leftcensored_lm(sim$data)
+result <- lm_linear(sim$data)
 regression_quantiles(sim$data, result$model)
 
 }

@@ -9,7 +9,7 @@
 #' 
 #' @examples
 #' sim <- leftcensored_simulate()
-#' result <- leftcensored_lm(sim$data)
+#' result <- lm_linear(sim$data)
 #' predicted_y_quantiles_onechain(2000, result$model, 1)
 #' 
 #' @export

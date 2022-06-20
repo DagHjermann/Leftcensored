@@ -1,9 +1,9 @@
-#' Prepare data for leftcensored_lm
+#' Prepare data for lm_linear
 #' 
 #' This function is meant for analysis of chemical concentration data as function of year. These data are given as
 #' two columns in the data: Concentration and LOQ flag. In our case, we assume that an empty LOQ flag 
 #' indicates that the concentration is above the LOQ. A non-empty LOQ flag indicates that the concentration is below the LOQ,
-#' and the value given in the Concentration column is actually the LOQ. This procedure organises the data so the fit for leftcensored_lm.
+#' and the value given in the Concentration column is actually the LOQ. This procedure organises the data so the fit for lm_linear.
 #' In addition, the LOQ is not given when the data is above LOQ. This procedure also sets the LOQ for every observation, in the following way:
 #' For years with at least one observation below LOD, we use the lowest LOD. For years with no observations below LOD, LOD is set to be 
 #' the lowest value - 10%.         

@@ -24,34 +24,19 @@ use_package('splines')
 
 # help(package = "leftcensored")
 
-help(leftcensored_lm)
+help(lc_linear)
 
 #
 # Simulate data and estimate regression ----
 #
 set.seed(10)
 sim <- leftcensored_simulate(n = 30)
-# debugonce(leftcensored_lm)
-result <- leftcensored_lm(sim$data)
+# debugonce(lc_linear)
+result <- lc_linear(sim$data)
 
 # Get best estimates and plot its regression line on top of the plot  
 a <- result$intercept["50%"]
 b <- result$slope["50%"]
-abline(a, b, col = "green2")
-lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
-lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
-
-
-#
-# . as above but normalize the data first ----
-#
-sim2 <- sim
-
-result <- leftcensored_lm(sim$data)
-
-# Get best estimates and plot its regression line on top of the plot  
-a <- result$summary$quantiles["intercept", "50%"]
-b <- result$summary$quantiles["slope", "50%"]
 abline(a, b, col = "green2")
 lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
@@ -61,10 +46,10 @@ lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 # With measurement error ----
 #
 
-set.seed(10)
+set.seed(11)
 sim <- leftcensored_simulate(n = 30)
 
-result <- leftcensored_lm_measerror(sim$data, measurement_error = 0.1)  
+result <- lc_linear_measerror(sim$data, measurement_error = 0.1)  
 
 # Get best estimates and plot its regression line on top of the plot  
 a <- result$intercept["50%"]
@@ -73,6 +58,29 @@ abline(a, b, col = "green2")
 # Add confidence interval  
 lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+
+#
+# With measurement error, less censoring ----
+#
+
+set.seed(11)
+sim <- leftcensored_simulate(n = 30, threshold_1 = 15, threshold_2 = 5)
+
+# Without measurement error (green)
+result <- lc_linear(sim$data)
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+abline(a, b, col = "green2")
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+
+# With measurement error (blue)
+result <- lc_linear_measerror(sim$data, measurement_error = 0.1)
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+abline(a, b, col = "blue3")
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "blue3")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "blue3")
 
 
 #
@@ -91,9 +99,9 @@ sim_list <- list(sim0, sim1, sim2, sim3)
 
 # Estimate models
 result_list <- list()
-result_list[[1]] <- leftcensored_lm(sim_list[[1]]$data)
+result_list[[1]] <- lc_linear(sim_list[[1]]$data)
 for (i in 2:4){
-  result_list[[i]] <- leftcensored_lm_measerror(sim_list[[i]]$data, 
+  result_list[[i]] <- lc_linear_measerror(sim_list[[i]]$data, 
                                                 measurement_error = sd_values[i],
                                                 detailed = TRUE)
 }
@@ -129,7 +137,7 @@ for (i in 1:4){
 
 set.seed(6)
 sim <- leftcensored_simulate(n = 30)
-result <- leftcensored_lm(sim$data, detailed = TRUE)
+result <- lc_linear(sim$data, detailed = TRUE)
 # Check detailed quantiles
 qs <- result$summary$quantiles
 # rownames(qs)
@@ -144,7 +152,7 @@ set.seed(6)
 sim <- leftcensored_simulate(n = 30)
 sim$data$se_measurement <- 0.1*abs(sim$data$y)  
 # sim$data$se_measurement[sim$data$uncensored == 0] <- 0.00001
-result <- leftcensored_lm_measerror(sim$data, sigma2 = 0.10, detailed = TRUE)
+result <- lc_linear_measerror(sim$data, sigma2 = 0.10, detailed = TRUE)
 
 # Check detailed quantiles
 qs <- result$summary$quantiles
@@ -195,7 +203,7 @@ ggplot(data_test, aes(x, y_uncens)) +
   geom_point(aes(color = uncensored))
 
 # Linear MCMC  
-result <- leftcensored_lm(data_test)
+result <- lc_linear(data_test)
 
 # MCMC summary
 result$summary

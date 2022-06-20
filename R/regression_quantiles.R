@@ -8,7 +8,7 @@
 #' 
 #' @examples
 #' sim <- leftcensored_simulate()
-#' result <- leftcensored_lm(sim$data)
+#' result <- lm_linear(sim$data)
 #' regression_quantiles(sim$data, result$model)
 #' 
 #' @export

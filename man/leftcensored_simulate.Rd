@@ -10,7 +10,7 @@ leftcensored_simulate(
   slope = -3,
   sigma = 4,
   threshold_1 = 20,
-  threshold_2 = 5,
+  threshold_2 = 10,
   threshold_change = 4,
   plot = TRUE,
   seed = NULL
@@ -56,7 +56,7 @@ leftcensored_simulate()
 sim <- leftcensored_simulate(slope = -1.5, threshold_1 = 27, threshold_2 = 20)
 
 # The data object of the output can be directly used in lm_leftcensored 
-result <- leftcensored_lm(sim$data)
+result <- lm_linear(sim$data)
 
 }
 \seealso{

@@ -13,7 +13,7 @@
 #' gg
 #' 
 #' # Add regression line to plot
-#' result <- leftcensored_lm(data_prepared)
+#' result <- lm_linear(data_prepared)
 #' plotdata <- regression_ci(data_prepared, result$model)
 #' gg +
 #'   geom_ribbon(data = plotdata, aes(x = x, ymin = y_lo, ymax = y_hi),

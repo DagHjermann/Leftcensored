@@ -21,7 +21,7 @@ Get data for plotting confidence interval of the regression
 }
 \examples{
 sim <- leftcensored_simulate()
-result <- leftcensored_lm(sim$data)
+result <- lm_linear(sim$data)
 plotdata <- regression_ci(sim$data, result$model)
 plot(y ~ x, type = "l", data = plotdata, ylim = range(plotdata[,3:4]))
 lines(y_lo ~ x, data = plotdata, lty = 2)

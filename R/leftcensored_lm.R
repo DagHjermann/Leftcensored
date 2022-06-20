@@ -29,14 +29,14 @@
 #' of the parameters of the linear regression: intercept, slope and sigma (the estimated standard deviation of the data around the regression line).
 #' It is common to use the quantiles for parameter estimates, i.e., using the  
 #' 50% quantile as the "best estimate" of the parameters, and using the 2.5% and 97.5% quantiles as endpoints of a 95% confidence interval. 
-#' \code{model} is the output of the jags() command, which is what \code{leftcensored_lm()} runs under the hood for estimation. 
+#' \code{model} is the output of the jags() command, which is what \code{lc_linear()} runs under the hood for estimation. 
 #' It is an MCMC object, which has methods for functions such as plot (see ?mcmc). If you have some knowledge of the MCMC technique for     
 #' state-space models, this can be used for diagnostic plots of the model. See examples.
 #'   
 #' @examples
 #' # Simulate data and estimate regression
 #' sim <- leftcensored_simulate(n = 30)
-#' result <- leftcensored_lm(sim$data)
+#' result <- lc_linear(sim$data)
 #' 
 #' # Get best estimates and plot its regression line on top of the plot  
 #' a <- result$summary$quantiles["intercept", "50%"]
@@ -48,7 +48,7 @@
 #' data_test <- prepare_data(concentrations)
 #' 
 #' # Perform the analysis
-#' result <- leftcensored_lm(df_test2)
+#' result <- lc_linear(df_test2)
 #' 
 #' # MCMC summary
 #' result$summary
@@ -65,7 +65,7 @@
 #' traceplot(result$model, ask = FALSE)
 #' 
 #' @export
-leftcensored_lm <- function(data,
+lc_linear <- function(data,
                             x = "x", 
                             y = "y", 
                             uncensored = "uncensored",
@@ -222,7 +222,7 @@ model
 
 #' @export
 
-leftcensored_lm_measerror <- function(data,
+lc_linear_measerror <- function(data,
                                       x = "x", 
                                       y = "y", 
                                       uncensored = "uncensored",

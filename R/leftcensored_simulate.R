@@ -31,7 +31,7 @@
 #' sim <- leftcensored_simulate(slope = -1.5, threshold_1 = 27, threshold_2 = 20)
 #' 
 #' # The data object of the output can be directly used in lm_leftcensored 
-#' result <- leftcensored_lm(sim$data)
+#' result <- lm_linear(sim$data)
 #' 
 #' @export
 # Some R code to simulate data from the above model
