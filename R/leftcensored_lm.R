@@ -133,7 +133,6 @@ model
   # Normalize (or more correctly centralize) x
   # Achieves mean = 0
   mean_x <- mean(data[[x]], na.rm = TRUE)
-  sd_x <- sd(data[[x]], na.rm = TRUE)
   # Functions for normalization and "un-normalization" (back-transformation)
   norm_x <- function(x) x-mean_x
 
@@ -225,7 +224,7 @@ model
 
 leftcensored_lm_measerror <- function(data,
                                       x = "x", 
-                                      y = "y_uncens", 
+                                      y = "y", 
                                       uncensored = "uncensored",
                                       threshold = "threshold",
                                       measurement_error = 0.1,
@@ -262,7 +261,11 @@ model
   #  y_uncens_error[i] ~ dnorm(y_uncens[i], se_measurement[i]^-2)
   
   for (i in 1:resolution) {
-    y.hat.out[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
+    y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
+  }
+  
+  for (i in 1:resolution){
+    y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
 
   # Priors
@@ -277,14 +280,30 @@ model
   # y_measerror[i] <- se_measurement*abs(y_uncens[i])
   # y_uncens_error[i] ~ dnorm(y_uncens[i], (0.1*abs(y_uncens[i])^2)
   
+  # Normalize y
+  # Achieves mean = 0
+  mean_y <- mean(data[[y]], na.rm = TRUE)
+  sd_y <- sd(data[[y]], na.rm = TRUE)
+  # Functions for normalization and "un-normalization" (back-transformation)
+  norm_y <- function(x) (x-mean_y)/sd_y
+  unnorm_y <- function(x) x*sd_y + mean_y
+  
+  # Normalize (or more correctly centralize) x
+  # Achieves mean = 0
+  mean_x <- mean(data[[x]], na.rm = TRUE)
+  # Functions for normalization and "un-normalization" (back-transformation)
+  norm_x <- function(x) x-mean_x
+  
   # Set up the data
   model_data <- list(n = nrow(data), 
-                     y_uncens_error = data[[y]], 
+                     y_uncens_error = norm_y(data[[y]]), 
                      uncensored = data[[uncensored]],
-                     threshold = data[[threshold]],
-                     x = data[[x]],
-                     x.out = x.out,
+                     threshold = norm_y(data[[threshold]]),
+                     x = norm_x(data[[x]]),
+                     x.out = norm_x(x.out),
                      resolution = resolution,
+                     mean_y = mean_y,
+                     sd_y = sd_y,
                      sigma2_mean = measurement_error*mean(data[[y]], na.rm = TRUE))
   
   # Choose the parameters to watch
@@ -311,19 +330,35 @@ model
   
   summary <- summary(model_mcmc)
   
+  #
   # Get predicted line 
+  #
   quants <- summary$quantiles
   length.out <- length(x.out)
   pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
   plot_data <- data.frame(
-    x = x.out, 
+    x = x.out,
     y = quants[pick_rownames,"50%"],
     y_lo = quants[pick_rownames,"2.5%"],
     y_hi = quants[pick_rownames,"97.5%"]
   )
   
+  # Get regression coefficients, originals:
+  intercept.norm <- summary$quantiles["intercept",]
+  slope.norm <- summary$quantiles["slope",]
+  #
+  # Get regression coefficients, back-transformed
+  intercept <- intercept.norm*sd_y - slope.norm*sd_y*mean_x + mean_y
+  slope <- slope.norm*sd_y
+  
   list(summary = summary(model_mcmc),
        plot_data = plot_data,
-       model = model_mcmc)
+       intercept = intercept,
+       slope = slope,
+       model_data = model_data,     # 
+       model = model_mcmc,
+       mean_y = mean_y,
+       sd_y = sd_y,
+       norm_y = norm_y)  
   
 }

@@ -61,24 +61,19 @@ lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 # With measurement error ----
 #
 
+set.seed(10)
 sim <- leftcensored_simulate(n = 30)
-sim$data$se_measurement <- 0.1*abs(sim$data$y)
-# sim$data$se_measurement[sim$data$uncensored == 0] <- 0.00001
 
-ggplot(sim$data, aes(x, y)) +
-  geom_point(aes(color = factor(uncensored))) +
-  geom_errorbar(aes(ymin = y - se_measurement, ymax = y + se_measurement))
-
-result <- leftcensored_lm_measerror(sim$data)  
+result <- leftcensored_lm_measerror(sim$data, measurement_error = 0.1)  
 
 # Get best estimates and plot its regression line on top of the plot  
-plot(y ~ x, sim$data)
-points(y ~ x, subset(sim$data, uncensored == 0), pch = 20, col = "red")
-a <- result$summary$quantiles["intercept", "50%"]
-b <- result$summary$quantiles["slope", "50%"]
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
 abline(a, b, col = "green2")
+# Add confidence interval  
 lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+
 
 #
 # With measurement error, test: without error vs. with different error sizes ----
