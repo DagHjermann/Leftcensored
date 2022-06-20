@@ -1,2 +1,6 @@
 ^leftcensored\.Rproj$
 ^\.Rproj\.user$
+^Test_area$
+^Test_script\.R$
+
+^LICENSE\.md$
