@@ -12,6 +12,8 @@
 #' @param var_year Variable name of the variable with the year data
 #' @param var_concentration Variable name of the variable with the concentration data
 #' @param var_LOQflag Variable name of the variable with the LOQ flag
+#' @param const Constant to add before log-transformation (to avoid problems with log of zero)
+#' 
 #' 
 #' @import dplyr
 #' 
@@ -19,7 +21,8 @@
 leftcensored_prepare <- function(data,
                                  var_year = "Year",
                                  var_concentration = "Conc",
-                                 var_LOQflag = "Flag"){
+                                 var_LOQflag = "Flag",
+                                 const = 0){
   # Change names in data set
   varnames_user <- c(var_year, var_concentration, var_LOQflag)
   varnames_new <- c("Year", "y", "Flag")
@@ -33,7 +36,7 @@ leftcensored_prepare <- function(data,
   }
   data %>%
     filter(!is.na(y)) %>%
-    mutate(y = log(y + 0.00001)) %>% 
+    mutate(y = log(y + const)) %>% 
     group_by(Year) %>%
     mutate(
       n_below_loq = sum(!is.na(Flag)),
