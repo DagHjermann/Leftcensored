@@ -20,7 +20,7 @@ Matrix of n rows and 5 columns: x, y, y_lo and y_hi
 Get data for plotting confidence interval of the regression
 }
 \examples{
-sim <- leftcensored_simulate()
+sim <- lc_simulate()
 result <- lm_linear(sim$data)
 plotdata <- regression_ci(sim$data, result$model)
 plot(y ~ x, type = "l", data = plotdata, ylim = range(plotdata[,3:4]))

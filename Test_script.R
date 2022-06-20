@@ -30,7 +30,7 @@ help(lc_linear)
 # Simulate data and estimate regression ----
 #
 set.seed(10)
-sim <- leftcensored_simulate(n = 30)
+sim <- lc_simulate(n = 30)
 # debugonce(lc_linear)
 result <- lc_linear(sim$data)
 
@@ -47,7 +47,7 @@ lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 #
 
 set.seed(11)
-sim <- leftcensored_simulate(n = 30)
+sim <- lc_simulate(n = 30)
 
 result <- lc_linear_measerror(sim$data, measurement_error = 0.1)  
 
@@ -64,7 +64,7 @@ lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 #
 
 set.seed(11)
-sim <- leftcensored_simulate(n = 30, threshold_1 = 15, threshold_2 = 5)
+sim <- lc_simulate(n = 30, threshold_1 = 15, threshold_2 = 5)
 
 # Without measurement error (green)
 result <- lc_linear(sim$data)
@@ -89,7 +89,7 @@ lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "blue3")
 
 # Simulate data  
 set.seed(6)
-sim0 <- sim1 <- sim2 <- sim3 <- leftcensored_simulate(n = 30)
+sim0 <- sim1 <- sim2 <- sim3 <- lc_simulate(n = 30)
 
 # sd_values   
 sd_values <- c(0, 0.10, 0.25, 0.50)
@@ -136,7 +136,7 @@ for (i in 1:4){
 # 1. ordinary lm  
 
 set.seed(6)
-sim <- leftcensored_simulate(n = 30)
+sim <- lc_simulate(n = 30)
 result <- lc_linear(sim$data, detailed = TRUE)
 # Check detailed quantiles
 qs <- result$summary$quantiles
@@ -149,7 +149,7 @@ qs[c("uncensored[7]", "uncensored[8]", "uncensored[9]"),]
 # 2. With measurement error 
 
 set.seed(6)
-sim <- leftcensored_simulate(n = 30)
+sim <- lc_simulate(n = 30)
 sim$data$se_measurement <- 0.1*abs(sim$data$y)  
 # sim$data$se_measurement[sim$data$uncensored == 0] <- 0.00001
 result <- lc_linear_measerror(sim$data, sigma2 = 0.10, detailed = TRUE)

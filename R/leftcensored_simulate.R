@@ -25,17 +25,17 @@
 #' @examples 
 #' 
 #' # Default parameters
-#' leftcensored_simulate()
+#' lc_simulate()
 #'
 #' # Modified parameters
-#' sim <- leftcensored_simulate(slope = -1.5, threshold_1 = 27, threshold_2 = 20)
+#' sim <- lc_simulate(slope = -1.5, threshold_1 = 27, threshold_2 = 20)
 #' 
 #' # The data object of the output can be directly used in lm_leftcensored 
 #' result <- lm_linear(sim$data)
 #' 
 #' @export
 # Some R code to simulate data from the above model
-leftcensored_simulate <- function(
+lc_simulate <- function(
   n = 100,
   intercept = 30,
   slope = -3,

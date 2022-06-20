@@ -7,7 +7,7 @@
 #' @return Matrix of n rows and 5 columns, containing quantiles for a given x value 
 #' 
 #' @examples
-#' sim <- leftcensored_simulate()
+#' sim <- lc_simulate()
 #' result <- lm_linear(sim$data)
 #' regression_quantiles(sim$data, result$model)
 #' 

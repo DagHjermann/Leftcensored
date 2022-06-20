@@ -20,7 +20,7 @@ Matrix of n rows and 5 columns, containing quantiles for a given x value
 Get regression quantiles for y for a number of x values within the range of x of the given data set
 }
 \examples{
-sim <- leftcensored_simulate()
+sim <- lc_simulate()
 result <- lm_linear(sim$data)
 regression_quantiles(sim$data, result$model)
 

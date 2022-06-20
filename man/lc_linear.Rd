@@ -63,7 +63,7 @@ prepare_data() to make your data ready for this function.
 }
 \examples{
 # Simulate data and estimate regression
-sim <- leftcensored_simulate(n = 30)
+sim <- lc_simulate(n = 30)
 result <- lc_linear(sim$data)
 
 # Get best estimates and plot its regression line on top of the plot  

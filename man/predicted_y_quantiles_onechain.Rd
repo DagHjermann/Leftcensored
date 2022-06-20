@@ -27,7 +27,7 @@ Matrix of one column and (with default quantiles) 5 rows, containing quantiles f
 Get quantiles for y (given x), mean quantiles for all chains
 }
 \examples{
-sim <- leftcensored_simulate()
+sim <- lc_simulate()
 result <- lm_linear(sim$data)
 predicted_y_quantiles_onechain(2000, result$model, 1)
 

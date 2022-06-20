@@ -20,7 +20,7 @@ Vector of (with default quantiles) 5 values, containing quantiles for the given 
 Get quantiles for y (given x), mean quantiles for all chains
 }
 \examples{
-sim <- leftcensored_simulate()
+sim <- lc_simulate()
 result <- lm_linear(sim$data)
 predicted_y_quantiles(2000, result$model)
 
