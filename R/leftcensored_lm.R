@@ -175,7 +175,7 @@ leftcensored_lm_measerror <- function(data,
                                       y = "y_uncens", 
                                       uncensored = "uncensored",
                                       threshold = "threshold",
-                                      se_measurement = "se_measurement",
+                                      measurement_error = 0.1,
                                       resolution = 50,
                                       n.chains = 4, 
                                       n.iter = 5000, 
@@ -203,9 +203,11 @@ model
   # Likelihood
   for (i in 1:n) {
     uncensored[i] ~ dinterval(y_uncens_error[i], threshold[i])
-    y_uncens_error[i] ~ dnorm(y_uncens[i], se_measurement[i]^2)
+    y_uncens_error[i] ~ dnorm(y_uncens[i], sigma2^-2)
     y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
+  #  y_uncens_error[i] ~ dnorm(y_uncens[i], se_measurement[i]^-2)
+  
   for (i in 1:resolution) {
     y.hat.out[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
   }
@@ -214,6 +216,8 @@ model
   intercept ~ dnorm(0, 100^-2)
   slope ~ dnorm(0, 100^-2)
   sigma ~ dunif(0, 10)
+  sigma2_sd <- 0.1*sigma2_mean
+  sigma2 ~ dnorm(sigma2_mean, sigma2_sd^-2)
 }
 '
   ### Set up data and parameters
@@ -222,13 +226,13 @@ model
   
   # Set up the data
   model_data <- list(n = nrow(data), 
-                     y_uncens = data[[y]], 
+                     y_uncens_error = data[[y]], 
                      uncensored = data[[uncensored]],
                      threshold = data[[threshold]],
                      x = data[[x]],
                      x.out = x.out,
                      resolution = resolution,
-                     se_measurement = data[[se_measurement]])
+                     sigma2_mean = measurement_error*mean(data[[y]], na.rm = TRUE))
   
   # Choose the parameters to watch
   if (detailed){
