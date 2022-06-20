@@ -31,6 +31,22 @@ help(leftcensored_lm)
 #
 set.seed(10)
 sim <- leftcensored_simulate(n = 30)
+# debugonce(leftcensored_lm)
+result <- leftcensored_lm(sim$data)
+
+# Get best estimates and plot its regression line on top of the plot  
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+abline(a, b, col = "green2")
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+
+
+#
+# . as above but normalize the data first ----
+#
+sim2 <- sim
+
 result <- leftcensored_lm(sim$data)
 
 # Get best estimates and plot its regression line on top of the plot  

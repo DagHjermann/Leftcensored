@@ -67,7 +67,7 @@
 #' @export
 leftcensored_lm <- function(data,
                             x = "x", 
-                            y = "y_uncens", 
+                            y = "y", 
                             uncensored = "uncensored",
                             threshold = "threshold",
                             resolution = 50,
@@ -118,7 +118,7 @@ model
 '
   ### Set up data and parameters
   
-  # Normalize x and y
+  # Normalize y
   mean_y <- mean(data[[y]], na.rm = TRUE)
   sd_y <- sd(data[[y]], na.rm = TRUE)
   
@@ -159,20 +159,34 @@ model
   
   summary <- summary(model_mcmc)
 
-    # Get predicted line 
+  #
+  # Get predicted line 
+  #
   quants <- summary$quantiles
   length.out <- length(x.out)
   pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
+  # y and lower and upper CI  values are back-transformed (un-normalized) using unnorm:
   plot_data <- data.frame(
     x = x.out, 
-    y = quants[pick_rownames,"50%"],
-    y_lo = quants[pick_rownames,"2.5%"],
-    y_hi = quants[pick_rownames,"97.5%"]
+    y = unnorm_y(quants[pick_rownames,"50%"]),
+    y_lo = unnorm_y(quants[pick_rownames,"2.5%"]),
+    y_hi = unnorm_y(quants[pick_rownames,"97.5%"])
   )
   
+  #
+  # Get regression coefficients, back-transformed:
+  intercept <- summary$quantiles["intercept",]*sd_y + mean_y
+  slope <- summary$quantiles["slope",]*sd_y
+
   list(summary = summary(model_mcmc),
        plot_data = plot_data,
-       model = model_mcmc)
+       intercept = intercept,
+       slope = slope,
+       model = model_mcmc,
+       mean_y = mean_y,
+       sd_y = sd_y,
+       norm_y = norm_y,
+       unnorm_y = unnorm_y)
   
 }
 
