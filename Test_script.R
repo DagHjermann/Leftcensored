@@ -178,7 +178,7 @@ ggplot(data_test, aes(x, y_uncens)) +
   geom_point(aes(color = factor(uncensored))) +
   geom_abline(intercept = result$intercept["50%"], slope = result$slope["50%"])
 
-# Plot with regression line and  
+# Plot with regression line and confidence interval   
 a <- result$intercept["50%"]
 b <- result$slope["50%"]
 ggplot(data_test, aes(x = x)) +
@@ -187,13 +187,32 @@ ggplot(data_test, aes(x = x)) +
   geom_point(aes(y = y_uncens, color = factor(uncensored))) +
   geom_abline(intercept = result$intercept["50%"], slope = result$slope["50%"])
 
+# Slope from lc_linear
 result$slope
-lm(y_)
 
-# MCMC summary
-result$summary
+# Slope from linear regression, ignoring "<"  
+ols <- summary(lm(y_uncens ~ x, data = data_test))$coef["x",]
 
+# Compare
+df_slopes <- bind_rows(
+  data.frame(
+    Analysis = "lc_linear",
+    slope_min = result$slope["2.5%"],
+    slope = result$slope["50%"],
+    slope_max = result$slope["97.5%"]),
+  data.frame(
+    Analysis = "lm",
+    slope_min = ols["Estimate"] - 2*ols["Std. Error"],
+    slope = ols["Estimate"],
+    slope_max = ols["Estimate"] + 2*ols["Std. Error"])
+)
+ggplot(df_slopes, aes(x = Analysis)) +
+  geom_pointrange(aes(y = slope, ymin = slope_min, ymax = slope_max))
+
+
+#
 # Spline MCMC  
+#
 result <- leftcensored_fixedsplines(data_test, x = "x", y = "y_uncens", uncensored = "uncensored", threshold = "threshold")
 
 plot(y_uncens ~ x, data = data_test)
