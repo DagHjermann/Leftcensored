@@ -107,7 +107,11 @@ model
     y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
   for (i in 1:resolution) {
-    y.hat.out[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
+    y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
+  }
+  
+  for (i in 1:resolution){
+    y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
 
   # Priors
@@ -119,21 +123,32 @@ model
   ### Set up data and parameters
   
   # Normalize y
+  # Achieves mean = 0
   mean_y <- mean(data[[y]], na.rm = TRUE)
   sd_y <- sd(data[[y]], na.rm = TRUE)
-  
   # Functions for normalization and "un-normalization" (back-transformation)
   norm_y <- function(x) (x-mean_y)/sd_y
   unnorm_y <- function(x) x*sd_y + mean_y
 
+  # Normalize (or more correctly centralize) x
+  # Achieves mean = 0
+  mean_x <- mean(data[[x]], na.rm = TRUE)
+  sd_x <- sd(data[[x]], na.rm = TRUE)
+  # Functions for normalization and "un-normalization" (back-transformation)
+  norm_x <- function(x) x-mean_x
+
   # Set up the data
+  # 
+  # Data has normalized y values and centralized x values
   model_data <- list(n = nrow(data), 
                     y_uncens = norm_y(data[[y]]), 
                     uncensored = data[[uncensored]],
                     threshold = norm_y(data[[threshold]]),
-                    x = data[[x]],
-                    x.out = x.out,
-                    resolution = resolution)
+                    x = norm_x(data[[x]]),
+                    x.out = norm_x(x.out),
+                    resolution = resolution,
+                    mean_y = mean_y,
+                    sd_y = sd_y)
 
   # Choose the parameters to watch
   if (detailed){
@@ -168,25 +183,40 @@ model
   # y and lower and upper CI  values are back-transformed (un-normalized) using unnorm:
   plot_data <- data.frame(
     x = x.out, 
-    y = unnorm_y(quants[pick_rownames,"50%"]),
-    y_lo = unnorm_y(quants[pick_rownames,"2.5%"]),
-    y_hi = unnorm_y(quants[pick_rownames,"97.5%"])
-  )
+    y = quants[pick_rownames,"50%"],
+    y_lo = quants[pick_rownames,"2.5%"],
+    y_hi = quants[pick_rownames,"97.5%"]  )
   
+  # Get regression coefficients, originals:
+  intercept.norm <- summary$quantiles["intercept",]
+  slope.norm <- summary$quantiles["slope",]
   #
-  # Get regression coefficients, back-transformed:
-  intercept <- summary$quantiles["intercept",]*sd_y + mean_y
-  slope <- summary$quantiles["slope",]*sd_y
-
+  # Get regression coefficients, back-transformed
+  intercept <- intercept.norm*sd_y - slope.norm*sd_y*mean_x + mean_y
+  slope <- slope.norm*sd_y
+  #
+  # Basis for formulae above:
+  # y' = (y - mean_y)/sd_y   (1)
+  # x' = x - mean_x          (2)
+  # Slope formula used for normalized data:
+  # y' = a' + b'x'           (3)
+  # - where a' and b' are the intercept and slope found for normalized data
+  # To get the formulae used above, substitute (1) and (2) into (3):
+  # (y - mean_y)/sd_y = a' + b'(x - mean_x)               (4)
+  # - and solve for y on the left side. This results in
+  # y = [a'*sd_y - b'*sd_y*mean_x + mean_y] + [b*sd_y]*x  (5)
+  # - where the two parantheses are the back-transformed intercept and slope, respectively
+  #
+  
   list(summary = summary(model_mcmc),
        plot_data = plot_data,
        intercept = intercept,
        slope = slope,
+       model_data = model_data,     # 
        model = model_mcmc,
        mean_y = mean_y,
        sd_y = sd_y,
-       norm_y = norm_y,
-       unnorm_y = unnorm_y)
+       norm_y = norm_y)
   
 }
 
