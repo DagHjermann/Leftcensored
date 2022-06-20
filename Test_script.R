@@ -29,7 +29,7 @@ help(lc_linear)
 #
 # Simulate data and estimate regression ----
 #
-set.seed(10)
+set.seed(11)
 sim <- lc_simulate(n = 30)
 # debugonce(lc_linear)
 result <- lc_linear(sim$data)
@@ -106,71 +106,34 @@ for (i in 2:4){
                                                 detailed = TRUE)
 }
 
+names(result_list) <- sprintf("SD = %.2f", sd_values)
+
 # Extract quantiles of intercept and slope  
-quantiles <- purrr::map(result_list, c("summary", "quantiles"))
-quantiles <- purrr::map(quantiles, as.data.frame)
-names(quantiles) <- sprintf("SD = %.2f", sd_values)
-interc <- purrr::map_dfr(quantiles, ~.["intercept",], .id = "Model")
-slope <- purrr::map_dfr(quantiles, ~.["slope",], .id = "Model")
+intercepts <- purrr::map_dfr(result_list, c("intercept"), .id = "Model")
+slopes <- purrr::map_dfr(result_list, c("slope"), .id = "Model")
 
 # Plot slope estimates
-ggplot(slope, aes(Model, `50%`)) +
+ggplot(slopes, aes(Model, `50%`)) +
   geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`))
 
 # Plot graphs for 
 for (i in 1:4){
-  gg <- ggplot(sim_list[[i]]$data, aes(x, y, color = factor(uncensored))) +
+  gg <- ggplot(sim_list[[i]]$data, aes(x, y_plot, color = factor(uncensored))) +
     geom_point() +
     geom_abline(
-      intercept = interc$`50%`[i],
-      slope = slope$`50%`[i]
+      intercept = intercepts$`50%`[i],
+      slope = slopes$`50%`[i]
     ) +
-    labs(title = names(quantiles)[i])
+    labs(title = names(result_list)[i])
   print(gg)
 }
 
-#
-# Check with detailed quantiles (including 'y_uncens' and 'uncensored') ----
-#
-
-# 1. ordinary lm  
-
-set.seed(6)
-sim <- lc_simulate(n = 30)
-result <- lc_linear(sim$data, detailed = TRUE)
-# Check detailed quantiles
-qs <- result$summary$quantiles
-# rownames(qs)
-sim$data[7:9,]
-# plot(y~x, sim$data[7:9,])
-qs[c("y_uncens[7]", "y_uncens[8]", "y_uncens[9]"),]
-qs[c("uncensored[7]", "uncensored[8]", "uncensored[9]"),]
-
-# 2. With measurement error 
-
-set.seed(6)
-sim <- lc_simulate(n = 30)
-sim$data$se_measurement <- 0.1*abs(sim$data$y)  
-# sim$data$se_measurement[sim$data$uncensored == 0] <- 0.00001
-result <- lc_linear_measerror(sim$data, sigma2 = 0.10, detailed = TRUE)
-
-# Check detailed quantiles
-qs <- result$summary$quantiles
-# rownames(qs)
-sim$data[7:9,]
-# plot(y~x, sim$data[7:9,])
-qs[c("y_uncens[7]", "y_uncens[8]", "y_uncens[9]"),]
-qs[c("y_uncens_error[7]", "y_uncens_error[8]", "y_uncens_error[9]"),]
-qs[c("uncensored[7]", "uncensored[8]", "uncensored[9]"),]
-
-
-
 
 #
-# leftcensored_prepare
+# lc_prepare ----
 #
 
-# ?leftcensored_prepare
+# ?lc_prepare
 
 # Get actual data  
 fn <- "../../seksjon 212/Milkys2_pc/Files_from_Jupyterhub_2020/Raw_data/109_adjusted_data_2021-09-15.rds"                         # data FROM Milkys2 on PC 
@@ -181,6 +144,7 @@ dat_all %>%
   filter(MYEAR > 2012) %>%
   xtabs(~PARAM + addNA(FLAG1), .)
 
+# as above, BDEs only 
 dat_all %>%
   filter(MYEAR > 2012 & substr(PARAM,1,3) == "BDE") %>%
   xtabs(~PARAM + addNA(FLAG1), .)
@@ -198,12 +162,33 @@ ggplot(dat1, aes(MYEAR, VALUE_WW, shape = Over_LOQ, color = Over_LOQ)) +
 # Prepare data
 data_test <- leftcensored_prepare(dat1, var_year = "MYEAR", var_concentration = "VALUE_WW", var_LOQflag = "FLAG1")
 
+# Plot  
 ggplot(data_test, aes(x, y_uncens)) +
   geom_point(aes(y = threshold), shape = 1, size = 3, color = "red") +
-  geom_point(aes(color = uncensored))
+  geom_point(aes(color = factor(uncensored)))
 
 # Linear MCMC  
-result <- lc_linear(data_test)
+result <- lc_linear(data_test)  
+
+# Plot with regression line  
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+ggplot(data_test, aes(x, y_uncens)) +
+  geom_point(aes(y = threshold), shape = 1, size = 3, color = "red") +
+  geom_point(aes(color = factor(uncensored))) +
+  geom_abline(intercept = result$intercept["50%"], slope = result$slope["50%"])
+
+# Plot with regression line and  
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+ggplot(data_test, aes(x = x)) +
+  geom_ribbon(data = result$plot_data, aes(ymin = y_lo, ymax = y_hi), fill = "grey80") + 
+  geom_point(aes(y = threshold), shape = 1, size = 3, color = "red") +
+  geom_point(aes(y = y_uncens, color = factor(uncensored))) +
+  geom_abline(intercept = result$intercept["50%"], slope = result$slope["50%"])
+
+result$slope
+lm(y_)
 
 # MCMC summary
 result$summary
