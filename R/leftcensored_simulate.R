@@ -55,32 +55,42 @@ leftcensored_simulate <- function(
   
   threshold <- ifelse(x <= threshold_change, threshold_1, threshold_2)
   uncensored <- ifelse(y > threshold, 1, 0)
-  y_obs <- ifelse(y > threshold, y, threshold)  # if below threshold => y = threshold (for plotting)
-  y_uncens <- ifelse(y > threshold, y, NA)    # if below threshold => y = NA (for analysis)
+  y_plot <- ifelse(y > threshold, y, threshold)  # if below threshold => y = threshold (for plotting)
+  y_obs <- ifelse(y > threshold, y, NA)      # if below threshold => y = NA (for analysis)
+  
+  result_data <- data.frame(x = x,
+                            y = y_obs,
+                            y_plot = y_plot, 
+                            y_real = y,
+                            uncensored = uncensored,
+                            threshold = threshold)
   
   if (plot){
-    # Plot
-    plot(x, y) # actual concentrations
-    # Measured concentrations
-    points(x, y_obs, pch = 19, col = "blue2")
-    # Concentrations below threshold
-    sel <- uncensored==0
-    points(x[sel], y_obs[sel], pch = 20, col = "red")
-    # Actual trend line
-    lines(x, intercept + slope * x)
-    # Plot censoring limits  
-    segments(x0 = c(min(x), threshold_change), 
-             x1 = c(threshold_change, max(x)),
-             y0 = c(threshold_1, threshold_2),
-             col = "red")
+    lc_plot_sim(result_data, intercept, slope, threshold_1, threshold_2, threshold_change)
   }
   result <- list(
-    data = data.frame(x = x,
-                       y = y,
-                       y_uncens = y_uncens, 
-                       uncensored = uncensored,
-                       threshold = threshold),
+    data = result_data,
     intercept = intercept, 
     slope = slope)
   invisible(result)
 }
+
+#' @export
+#' 
+#' 
+lc_plot_sim <- function(data, 
+                        sim_intercept, sim_slope, 
+                        sim_threshold_1, sim_threshold_2, sim_threshold_change){
+  # Real (partly unobserved) concentrations - NOT used in analysis:
+  plot(y_real ~ x, data)                          
+  # Observed concentrations - used in analysis:
+  points(y_plot ~ x, data, pch = 20, col = "blue2") 
+  # Actual (unknown) trend line
+  abline(sim_intercept, sim_slope, col = "blue2")
+  # Plot censoring limits  
+  segments(x0 = c(min(data$x), sim_threshold_change), 
+           x1 = c(sim_threshold_change, max(data$x)),
+           y0 = c(sim_threshold_1, sim_threshold_2),
+           col = "red")
+}
+
