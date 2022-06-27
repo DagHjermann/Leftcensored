@@ -35,23 +35,16 @@
 #'   
 #' @examples
 #' # Simulate data and estimate regression
+#' set.seed(11)
 #' sim <- lc_simulate(n = 30)
 #' result <- lc_linear(sim$data)
 #' 
 #' # Get best estimates and plot its regression line on top of the plot  
-#' a <- result$summary$quantiles["intercept", "50%"]
-#' b <- result$summary$quantiles["slope", "50%"]
+#' a <- result$intercept["50%"]
+#' b <- result$slope["50%"]
 #' abline(a, b, col = "green2")
-#' 
-#' # Example with real data
-#' # Prepare the data
-#' data_test <- prepare_data(concentrations)
-#' 
-#' # Perform the analysis
-#' result <- lc_linear(df_test2)
-#' 
-#' # MCMC summary
-#' result$summary
+#' lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+#' lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 #' 
 #' # Check quantiles of the parameters
 #' result$summary$quantiles
@@ -62,7 +55,7 @@
 #' 
 #' # Plot the trace for each MCMC run  
 #' par(mfrow = c(2,2), mar = c(2,4,3,1))
-#' traceplot(result$model, ask = FALSE)
+#' coda::traceplot(result$model, ask = FALSE)
 #' 
 #' @export
 lc_linear <- function(data,
@@ -103,8 +96,8 @@ model
 {
   # Likelihood
   for (i in 1:n) {
-    uncensored[i] ~ dinterval(y_uncens[i], threshold[i])
-    y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+    uncensored[i] ~ dinterval(y.uncens[i], threshold[i])
+    y.uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
   for (i in 1:resolution) {
     y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
@@ -140,7 +133,7 @@ model
   # 
   # Data has normalized y values and centralized x values
   model_data <- list(n = nrow(data), 
-                    y_uncens = norm_y(data[[y]]), 
+                    y.uncens = norm_y(data[[y]]), 
                     uncensored = data[[uncensored]],
                     threshold = norm_y(data[[threshold]]),
                     x = norm_x(data[[x]]),
@@ -151,8 +144,8 @@ model
 
   # Choose the parameters to watch
   if (detailed){
-    model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out",
-    "y_uncens", "uncensored")
+    model_parameters <-  c("intercept", "slope", "sigma", 
+                           "y.hat.out.norm", "y.hat.out", "y.uncens")
   } else {
     model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
   }
@@ -195,16 +188,16 @@ model
   slope <- slope.norm*sd_y
   #
   # Basis for formulae above:
-  # y' = (y - mean_y)/sd_y   (1)
-  # x' = x - mean_x          (2)
+  #   y' = (y - mean_y)/sd_y   (1)
+  #   x' = x - mean_x          (2)
   # Slope formula used for normalized data:
-  # y' = a' + b'x'           (3)
-  # - where a' and b' are the intercept and slope found for normalized data
+  #   y' = a' + b'x'           (3)
+  #   - where a' and b' are the intercept and slope found for normalized data
   # To get the formulae used above, substitute (1) and (2) into (3):
-  # (y - mean_y)/sd_y = a' + b'(x - mean_x)               (4)
-  # - and solve for y on the left side. This results in
-  # y = [a'*sd_y - b'*sd_y*mean_x + mean_y] + [b*sd_y]*x  (5)
-  # - where the two parantheses are the back-transformed intercept and slope, respectively
+  #   (y - mean_y)/sd_y = a' + b'(x - mean_x)               (4)
+  # And solve for y on the left side. This results in
+  #   y = [a'*sd_y - b'*sd_y*mean_x + mean_y] + [b*sd_y]*x  (5)
+  # Where the two parentheses are the back-transformed intercept and slope, respectively
   #
   
   list(summary = summary(model_mcmc),
@@ -254,11 +247,11 @@ model
 {
   # Likelihood
   for (i in 1:n) {
-    uncensored[i] ~ dinterval(y_uncens_error[i], threshold[i])
-    y_uncens_error[i] ~ dnorm(y_uncens[i], sigma2^-2)
-    y_uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+    uncensored[i] ~ dinterval(y.uncens.error[i], threshold[i])
+    y.uncens.error[i] ~ dnorm(y.uncens[i], sigma2^-2)
+    y.uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
-  #  y_uncens_error[i] ~ dnorm(y_uncens[i], se_measurement[i]^-2)
+  #  y.uncens.error[i] ~ dnorm(y.uncens[i], se_measurement[i]^-2)
   
   for (i in 1:resolution) {
     y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
@@ -277,8 +270,8 @@ model
 }
 '
   ### Set up data and parameters
-  # y_measerror[i] <- se_measurement*abs(y_uncens[i])
-  # y_uncens_error[i] ~ dnorm(y_uncens[i], (0.1*abs(y_uncens[i])^2)
+  # y_measerror[i] <- se_measurement*abs(y.uncens[i])
+  # y.uncens.error[i] ~ dnorm(y.uncens[i], (0.1*abs(y.uncens[i])^2)
   
   # Normalize y
   # Achieves mean = 0
@@ -296,7 +289,7 @@ model
   
   # Set up the data
   model_data <- list(n = nrow(data), 
-                     y_uncens_error = norm_y(data[[y]]), 
+                     y.uncens.error = norm_y(data[[y]]), 
                      uncensored = data[[uncensored]],
                      threshold = norm_y(data[[threshold]]),
                      x = norm_x(data[[x]]),
@@ -309,7 +302,7 @@ model
   # Choose the parameters to watch
   if (detailed){
     model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out", 
-                           "y_uncens", "y_uncens_error", "uncensored")
+                           "y.uncens", "y.uncens.error", "uncensored")
   } else {
     model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
   }
