@@ -12,6 +12,7 @@
 #' @param var_year Variable name of the variable with the year data
 #' @param var_concentration Variable name of the variable with the concentration data
 #' @param var_LOQflag Variable name of the variable with the LOQ flag
+#' @param value_under_LOQ Value of LOQ flag variable for values under LOQ 
 #' @param const Constant to add before log-transformation (to avoid problems with log of zero)
 #' 
 #' 
@@ -22,10 +23,11 @@ lc_prepare <- function(data,
                        var_year = "year",
                        var_concentration = "concentration",
                        var_LOQflag = "concentr_flag",
+                       value_under_LOQ = "<",
                        const = 0){
   # Change names in data set
   varnames_user <- c(var_year, var_concentration, var_LOQflag)
-  varnames_new <- c("Year", "y", "Flag")
+  varnames_new <- c("x", "y", "Flag")
   for (i in 1:3){
     sel <- names(data) %in% varnames_user[i]
     if (sum(sel)==1){
@@ -34,40 +36,23 @@ lc_prepare <- function(data,
       stop(paste("No unique variable named", sQuote(varnames_user[i]), "was found in the data set"))
     } 
   }
-  data_1 <- data %>%
+  result <- data %>%
     filter(!is.na(y)) %>%
-    mutate(log_y = log(y + const)) %>% 
-    group_by(Year) %>%
     mutate(
-      n_below_loq = sum(!is.na(Flag))
-    ) %>%
-    ungroup()
-  # Years with some data below LOQ
-  data_2a <- data_1 %>%
-    filter(n_below_loq > 0) %>%
-    group_by(Year, n_below_loq) %>%
-    mutate(
-      LOQ_per_year = min(log_y[!is.na(Flag)])  # years with at least one below LOD: use lowest LOD 
-    ) %>%
-    ungroup()
-  # Then we also must make sure that any data that are above LOD has LOQ_per_year lower than this
-  sel <- with(data_2a, is.na(Flag) & LOQ_per_year > log_y)
-  data_2a$LOQ_per_year[sel] <- data_2a$log_y[sel] - log(1.10)
-  # Years with no data below LOQ
-  data_2b <- data_1 %>%
-    filter(n_below_loq == 0) %>%
-    group_by(Year) %>%
-    mutate(
-      LOQ_per_year = min(log_y) - log(1.10)   # years with no obs below LOD: use lowest value - 10%
-    ) %>%
-    ungroup()
-  result <- bind_rows(data_2a, data_2b) %>%
-    mutate(
-      x = Year,
-      y = ifelse(is.na(Flag), log_y, 0),
-      uncensored = ifelse(is.na(Flag), 1, 0),
-      threshold = ifelse(uncensored == 0, log_y, LOQ_per_year)
-    ) %>%
-    select(x, y, Flag, uncensored, threshold)
+      y = log(y + const),
+      threshold = as.numeric(NA),
+      uncensored = as.numeric(NA))
+  #
+  # Values under LOQ
+  #
+  sel_cens <- result$Flag %in% value_under_LOQ
+  result$threshold[sel_cens] <- result$y[sel_cens]
+  result$y[sel_cens] <- NA
+  result$uncensored[sel_cens] <- 0
+  #
+  # Values over LOQ
+  #
+  result$threshold[!sel_cens] <- min(result$y[!sel_cens]) - 10
+  result$uncensored[!sel_cens] <- 1
   result
 }
