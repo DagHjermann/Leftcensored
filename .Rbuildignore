@@ -2,5 +2,6 @@
 ^\.Rproj\.user$
 ^Test_area$
 ^Test_script\.R$
+^Test_script_for_job\.R$
 
 ^LICENSE\.md$

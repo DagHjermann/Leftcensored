@@ -12,4 +12,8 @@ RoxygenNote: 7.1.2
 Imports: 
     dplyr,
     ggplot2,
+    R2jags,
     splines
+Depends: 
+    R (>= 2.10)
+LazyData: true
