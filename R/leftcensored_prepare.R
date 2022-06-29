@@ -9,10 +9,11 @@
 #' the lowest value - 10%.         
 #' 
 #' @param data Data set (a data frame)
-#' @param var_year Variable name of the variable with the year data
-#' @param var_concentration Variable name of the variable with the concentration data
+#' @param var_x Variable name for the predictor variable  
+#' @param var_concentration Variable name of the response variable (for chemical data, concentration data)  
 #' @param var_LOQflag Variable name of the variable with the LOQ flag
-#' @param value_under_LOQ Value of LOQ flag variable for values under LOQ 
+#' @param value_under_LOQ Value of LOQ flag variable for values under LOQ, by default "<" 
+#' @param log Value (TRUE/FALSE) for whether to log-transform concentrations or not (TRUE by default)
 #' @param const Constant to add before log-transformation (to avoid problems with log of zero)
 #' 
 #' 
@@ -20,13 +21,14 @@
 #' 
 #' @export
 lc_prepare <- function(data,
-                       var_year = "year",
+                       var_x = "x",
                        var_concentration = "concentration",
                        var_LOQflag = "concentr_flag",
                        value_under_LOQ = "<",
+                       log = TRUE,
                        const = 0){
   # Change names in data set
-  varnames_user <- c(var_year, var_concentration, var_LOQflag)
+  varnames_user <- c(var_x, var_concentration, var_LOQflag)
   varnames_new <- c("x", "y", "Flag")
   for (i in 1:3){
     sel <- names(data) %in% varnames_user[i]
@@ -39,9 +41,13 @@ lc_prepare <- function(data,
   result <- data %>%
     filter(!is.na(y)) %>%
     mutate(
-      y = log(y + const),
       threshold = as.numeric(NA),
       uncensored = as.numeric(NA))
+  
+  if (log){
+    result$y <- log(result$y + const)
+  }
+  
   #
   # Values under LOQ
   #
