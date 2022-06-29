@@ -59,16 +59,20 @@
 #' 
 #' @export
 lc_linear <- function(data,
-                            x = "x", 
-                            y = "y", 
-                            uncensored = "uncensored",
-                            threshold = "threshold",
-                            resolution = 50,
-                            n.chains = 4, 
-                            n.iter = 5000, 
-                            n.burnin = 1000, 
-                            n.thin = 2,
-                            detailed = FALSE){
+                      x = "x", 
+                      y = "y", 
+                      uncensored = "uncensored",
+                      threshold = "threshold",
+                      resolution = 50,
+                      n.chains = 4, 
+                      n.iter = 5000, 
+                      n.burnin = 1000, 
+                      n.thin = 2,
+                      mean_y = NULL,
+                      sd_y = NULL,
+                      plot_input = FALSE,
+                      plot_norm = FALSE,
+                      detailed = FALSE){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -83,6 +87,11 @@ lc_linear <- function(data,
   
   # All the values of 'uncensored' that are not 1, will be set to 
   data[[uncensored]][!data[[uncensored]] == 1] <- 0
+  
+  if (plot_input){
+    plot(data$x, data$y, ylim = range(data$y, data$threshold, na.rm = TRUE))
+    points(data$x[data$uncensored == 0], data$threshold[data$uncensored == 0], pch = 20, col = 2)
+  }
   
   # For making predicted lines (with SE) 
   xmin <- min(data[[x]], na.rm = TRUE)
@@ -117,8 +126,10 @@ model
   
   # Normalize y
   # Achieves mean = 0
-  mean_y <- mean(data[[y]], na.rm = TRUE)
-  sd_y <- sd(data[[y]], na.rm = TRUE)
+  if (is.null(mean_y))
+    mean_y <- mean(data[[y]], na.rm = TRUE)
+  if (is.null(sd_y))
+    sd_y <- sd(data[[y]], na.rm = TRUE)
   # Functions for normalization and "un-normalization" (back-transformation)
   norm_y <- function(x) (x-mean_y)/sd_y
   unnorm_y <- function(x) x*sd_y + mean_y
@@ -142,6 +153,11 @@ model
                     mean_y = mean_y,
                     sd_y = sd_y)
 
+  if (plot_norm){
+    plot(model_data$x, model_data$y.uncens, ylim = range(model_data$y.uncens, model_data$threshold, na.rm = TRUE))
+    points(model_data$x[model_data$uncensored == 0], model_data$threshold[model_data$uncensored == 0], pch = 20, col = 2)
+  }
+  
   # Choose the parameters to watch
   if (detailed){
     model_parameters <-  c("intercept", "slope", "sigma", 
@@ -150,15 +166,28 @@ model
     model_parameters <-  c("intercept", "slope", "sigma", "y.hat.out")
   }
   
+  # Initial values  
+  init_model_df <- data.frame(x = model_data$x[model_data$uncensored == 1], y.uncens = model_data$y.uncens[model_data$uncensored == 1])
+  init_model <- lm(y.uncens ~ x, data = init_model_df)
+  init_summ <- summary(init_model)$coef
+  jags.inits <- function(){
+    list("intercept" = rnorm(1, mean = init_summ[1,1], sd = init_summ[1,2]), 
+         "slope" =  rnorm(1, mean = init_summ[2,1], sd = init_summ[2,2]),
+         "sigma" = runif(1))
+  }
+  
   ### Run model
   # Run the model
-  model_run <- R2jags::jags(data = model_data,
-                   parameters.to.save = model_parameters,
-                   model.file=textConnection(model_code),
-                   n.chains=n.chains,   # Number of different starting positions
-                   n.iter = n.iter,     # Number of iterations
-                   n.burnin = n.burnin, # Number of iterations to remove at start
-                   n.thin = n.thin)     # Amount of thinning
+  model_run <- R2jags::jags(
+    data = model_data,
+    init = jags.inits,
+    parameters.to.save = model_parameters,
+    model.file=textConnection(model_code),
+    n.chains=n.chains,   # Number of different starting positions
+    n.iter = n.iter,     # Number of iterations
+    n.burnin = n.burnin, # Number of iterations to remove at start
+    n.thin = n.thin)     # Amount of thinning
+  
   
   # model_run
   model_mcmc <- coda::as.mcmc(model_run)
@@ -216,17 +245,19 @@ model
 #' @export
 
 lc_linear_measerror <- function(data,
-                                      x = "x", 
-                                      y = "y", 
-                                      uncensored = "uncensored",
-                                      threshold = "threshold",
-                                      measurement_error = 0.1,
-                                      resolution = 50,
-                                      n.chains = 4, 
-                                      n.iter = 5000, 
-                                      n.burnin = 1000, 
-                                      n.thin = 2,
-                                      detailed = TRUE){
+                                x = "x", 
+                                y = "y", 
+                                uncensored = "uncensored",
+                                threshold = "threshold",
+                                measurement_error = 0.1,
+                                resolution = 50,
+                                n.chains = 4, 
+                                n.iter = 5000, 
+                                n.burnin = 1000, 
+                                n.thin = 2,
+                                mean_y = NULL,
+                                sd_y = NULL,
+                                detailed = TRUE){
   
   # Set all censored data to NA (if not already done)
   # Important! Otherwise all LOQ stuff is ignored
@@ -249,7 +280,7 @@ model
   for (i in 1:n) {
     uncensored[i] ~ dinterval(y.uncens.error[i], threshold[i])
     y.uncens.error[i] ~ dnorm(y.uncens[i], sigma2^-2)
-    y.uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+    y.uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2) 
   }
   #  y.uncens.error[i] ~ dnorm(y.uncens[i], se_measurement[i]^-2)
   
@@ -275,8 +306,10 @@ model
   
   # Normalize y
   # Achieves mean = 0
-  mean_y <- mean(data[[y]], na.rm = TRUE)
-  sd_y <- sd(data[[y]], na.rm = TRUE)
+  if (is.null(mean_y))
+    mean_y <- mean(data[[y]], na.rm = TRUE)
+  if (is.null(sd_y))
+    sd_y <- sd(data[[y]], na.rm = TRUE)
   # Functions for normalization and "un-normalization" (back-transformation)
   norm_y <- function(x) (x-mean_y)/sd_y
   unnorm_y <- function(x) x*sd_y + mean_y
