@@ -51,6 +51,9 @@ sim <- lc_simulate(n = 30)   # also plots the data
 # debugonce(lc_linear)
 result <- lc_linear(sim$data)
 
+# debugonce(lc_linear_qi)
+result <- lc_linear_qi(sim$data)
+
 # Get best estimate fitted line       
 a <- result$intercept["50%"]
 b <- result$slope["50%"]

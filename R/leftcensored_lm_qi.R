@@ -103,10 +103,14 @@ lc_linear_qi <- function(data,
   model_code = '
 model
 {
-  # Likelihood
-  for (i in 1:n) {
-    uncensored[i] ~ dinterval(y.uncens[i], threshold[i])
-    y.uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
+  # Uncensored observations 
+  for (o in 1:O) {
+    y.uncens[o] ~ dnorm(intercept + slope * x[o], sigma^-2)
+  }
+  # Censored observations 
+  for (c in 1:C) {
+    Z1[c] ~ dbern(p[c])
+    p[c] ~ pnorm(cut[c], intercept + slope * x[O+c])
   }
   for (i in 1:resolution) {
     y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
@@ -139,15 +143,21 @@ model
   mean_x <- mean(data[[x]], na.rm = TRUE)
   # Functions for normalization and "un-normalization" (back-transformation)
   norm_x <- function(x) x-mean_x
-
-  # Set up the data
-  # 
+  
+  # Set up the data for Qi's method
   # Data has normalized y values and centralized x values
-  model_data <- list(n = nrow(data), 
-                    y.uncens = norm_y(data[[y]]), 
-                    uncensored = data[[uncensored]],
-                    threshold = norm_y(data[[threshold]]),
-                    x = norm_x(data[[x]]),
+  
+  # Split the data into uncensored and censored parts
+  data_obs <- data[data[[uncensored]] %in% 1,]
+  data_cen <- data[data[[uncensored]] %in% 0,]
+  data_all <- rbind(data_obs, data_cen)
+
+  model_data <- list(x = norm_x(data[[x]]),
+                     y.uncens = norm_y(data_obs[[y]]),
+                     O = nrow(data_obs),
+                     Z1 = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     cut = norm_y(data_cen[[threshold]]),
+                     C = nrow(data_cen),
                     x.out = norm_x(x.out),
                     resolution = resolution,
                     mean_y = mean_y,
@@ -167,7 +177,7 @@ model
   }
   
   # Initial values  
-  init_model_df <- data.frame(x = model_data$x[model_data$uncensored == 1], y.uncens = model_data$y.uncens[model_data$uncensored == 1])
+  init_model_df <- data.frame(x = data_obs[[x]], y.uncens = data_obs[[y]])
   init_model <- lm(y.uncens ~ x, data = init_model_df)
   init_summ <- summary(init_model)$coef
   jags.inits <- function(){
