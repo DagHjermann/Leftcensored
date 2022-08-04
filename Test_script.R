@@ -14,24 +14,38 @@ load_all()
 #
 
 check()
-use_package('dplyr')
-use_package('ggplot2', 'suggests')
-use_mit_license()
+# use_package('dplyr')
+# use_package('ggplot2', 'suggests')
+# use_mit_license()
+# check()
+# use_package('ggplot2')
+# check()
+# use_package('splines')
+# use_package('graphics')
+# use_package('stats')
+
+# Update documentation (including examples)  
+document()
+
+# Update functions
+load_all()
+
+# Final check
 check()
-use_package('ggplot2')
-check()
-use_package('splines')
 
 # Installing package  
 install()
 
 # help(package = "leftcensored")
-
-help(lc_linear)
+# help(lc_linear)
 
 #
-# Simulate data and estimate regression ----
+# Linear regression (LR) ----
+# 
+# Works ok
 #
+
+# Simulate data and estimate regression 
 set.seed(11)
 sim <- lc_simulate(n = 30)   # also plots the data
 # debugonce(lc_linear)
@@ -41,10 +55,10 @@ result <- lc_linear(sim$data)
 a <- result$intercept["50%"]
 b <- result$slope["50%"]
 # Add regression line to the plot  
-abline(a, b, col = "green2")
+abline(a, b, col = "green3")
 # Add confidence interval  
-lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
-lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green3")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green3")
 
 # The result is a list of 9 things:  
 str(result, 1)
@@ -61,7 +75,11 @@ pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
 #' plot(result$model)
 
 #
-# With measurement error ----
+# LR with measurement error ----
+#
+# Slope is significantly biased downwards
+# Or: y is underestimated for high x
+# - actual y-mean is within the CI of estimate y-mean, though  
 #
 
 set.seed(11)
@@ -77,6 +95,206 @@ abline(a, b, col = "green2")
 # Add confidence interval  
 lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+
+#
+# With measurement error and a minimum Y ----
+#
+# This increased the bias, not reduced it....
+#
+
+set.seed(11)
+sim <- lc_simulate(n = 30)
+result <- lc_linear_measerror_min(sim$data, measurement_error = 0.1, minimum_y = -2)  
+# result <- lc_linear_measerror(sim$data, measurement_error = 0.1, detailed = TRUE)  
+
+# Get best estimates and plot its regression line on top of the plot  
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+abline(a, b, col = "green2")
+# Add confidence interval  
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
+
+
+#
+# . - Bias? Test for many simulations     ----
+#
+
+#
+# 1. base example using 'lc_linear_measerror'    
+#
+sim_slope <- function(i){
+  sim <- lc_simulate(n = 30, plot = FALSE)
+  result <- lc_linear_measerror(sim$data, measurement_error = 0.1)  
+  c(i=i, result$slope)
+}
+
+if (FALSE){
+  # Main test - around 2-3 minutes run  
+  set.seed(11)
+  sim_result <- 1:20 %>% purrr::map_dfr(sim_slope)
+}
+
+ggplot(sim_result, aes(i, `50%`)) +
+  geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`)) +
+  geom_hline(yintercept = -3, color = "red")
+
+
+
+#
+# 2. give the actual (normally unknown) mean/sd of y  
+#
+# Didn't help. So hat's not the problem
+#
+sim_slope_givenmean <- function(i){
+  sim <- lc_simulate(n = 30, plot = FALSE)
+  result <- lc_linear_measerror(sim$data, measurement_error = 0.1, 
+                                mean_y = mean(sim$data$y_real),
+                                sd_y = sd(sim$data$y_real))  
+  c(i=i, result$slope)
+}
+
+if (FALSE){
+  # Main test
+  set.seed(11)
+  sim_result_givenmean <- 1:20 %>% purrr::map_dfr(sim_slope_givenmean)
+}
+
+ggplot(sim_result_givenmean, aes(i, `50%`)) +
+  geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`)) +
+  geom_hline(yintercept = -3, color = "red")
+
+#
+# 3. try with minimum value
+#
+
+# Did not work ell at all, on the contrary  
+
+sim_slope <- function(i){
+  sim <- lc_simulate(n = 30, plot = FALSE)
+  result <- lc_linear_measerror_min(sim$data, measurement_error = 0.1, minimum_y = -2)  
+  c(i=i, result$slope)
+}
+
+if (FALSE){
+  # Main test
+  set.seed(11)
+  sim_result_miny <- 1:20 %>% purrr::map_dfr(sim_slope)
+}
+
+ggplot(sim_result_miny, aes(i, `50%`)) +
+  geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`)) +
+  geom_hline(yintercept = -3, color = "red")
+
+
+
+#
+# 4. try using 'lc_linear' (not 'lc_linear_measerror'), but instead add random noise to data  
+#    
+#
+
+# Add random error (sd = 0.10) for uncensored data
+# Mimicking measurement error
+create_one_random <- function(i, simulation, sd_fraction = 0.1){
+  sel <- simulation$data$uncensored == 1
+  sd <- simulation$data$y[sel]*sd_fraction 
+  simulation$data$y[sel] <- simulation$data$y[sel] + rnorm(sum(sel), 0, sd)
+  # Make sure that no data are under the threshold
+  sel2 <- sel & (simulation$data$y < simulation$data$threshold)
+  simulation$data$y[sel2] <- simulation$data$threshold[sel2]*1.01
+  simulation
+}
+create_one_random(1, sim1) %>% str(1)
+
+sim_list <- lapply(1:2, create_one_random, simulation = sim1)
+
+# Test that 'lc_linear' works
+result <- lc_linear(sim1$data)
+result <- lc_linear(sim_list[[1]]$data)
+
+# Check how to get slope "raw" numbers (so they lter can be concayenated for each random data)
+str(result$model)
+str(result$model[[1]])
+dimnames(result$model[[1]])
+result$model[[1]][,"slope"] %>% head(50)  # note: normalized numbers
+
+# View(sim1$data)
+# View(sim_list[[1]]$data)
+
+# This gets you only the quantiles som not so useful  
+get_slope <- function(simulation){
+  result <- lc_linear(simulation$data)
+  result$slope
+}
+#  sim_list %>% purrr::map_dfr(get_slope)
+
+# This gets you the raw data (not only the quantiles)    
+# NOTE: still the untransformed data  
+get_slope_raw <- function(i, simulation){
+  result <- lc_linear(simulation$data)
+  data.frame(
+    i = i,
+    slope = c(result$model[[1]][,"slope"],
+      result$model[[2]][,"slope"],
+      result$model[[3]][,"slope"],
+      result$model[[4]][,"slope"]
+    )
+  )
+}
+test <- get_slope_raw(42, sim_list[[1]])
+str(test)
+
+result_rand <- seq_along(sim_list) %>% purrr::map_dfr(~get_slope_raw(.x, sim_list[[.x]]))
+str(result_rand, 1)
+
+#
+# GOTTEN THIS FAR
+#
+
+
+
+
+# create_one_random(sim1)
+sim_slopes_rand <- function(simulation, n){
+  sim_result_slopes <- 1:n %>% purrr::map_dfr(create_one_random(simulation))
+  sim_result_slopes
+}
+sim_slopes_rand(sim1, 2)
+
+
+
+  
+rnorm(10, mean = 1:10, sd = seq(100,0.1,length=10))
+
+
+sim_slope_rand <- function(i){
+  sim1 <- lc_simulate(n = 30, plot = FALSE)
+  result1 <- lc_linear(sim$data, measurement_error = 0.1)  
+  result2 <- lc_linear_measerror(sim$data, measurement_error = 0.1)  
+  c(i=i, result$slope)
+}
+
+if (FALSE){
+  # Main test
+  set.seed(11)
+  sim_result_miny <- 1:20 %>% purrr::map_dfr(sim_slope)
+}
+
+ggplot(sim_result_miny, aes(i, `50%`)) +
+  geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`)) +
+  geom_hline(yintercept = -3, color = "red")
+
+
+
+
+
+# Test 
+sim_slope(1)
+
+
+
+
+
 
 # Truncae distribution  
 y_min <- 0
@@ -303,6 +521,8 @@ ggplot(dat1, aes(MYEAR, VALUE_WW, shape = Over_LOQ, color = Over_LOQ)) +
 
 if (FALSE){
   
+  # Adding example data 'polybrom'  
+  
   # Make example dataset
   polybrom <- dat1 %>% 
     filter(STATION_CODE %in% c("13B", "23B", "53B")) %>%
@@ -310,56 +530,56 @@ if (FALSE){
       station = STATION_CODE,
       year = MYEAR,
       concentration = VALUE_WW,
-      concentr_flag = FLAG1,
+      LOQ_flag = FLAG1,
     ) %>%
     arrange(station, year) %>%
-    select(station, year, concentration, concentr_flag)
+    select(station, year, concentration, LOQ_flag)
   
   # Add to package  
   usethis::use_data(polybrom)
+  
+  # File R/data.R manually edited (as far as I remember?)
+  
+  # Check
+  ggplot(polybrom, aes(year, concentration, 
+                       shape = (LOQ_flag %in% "<"), 
+                       colour = (LOQ_flag %in% "<"))) +
+    geom_jitter(width = 0.1) +
+    scale_shape_manual(values = c(16,6)) +
+    scale_y_log10() +
+    facet_wrap(vars(station))
 
 }
 
 
 
 #
-# lc_prepare ----
+# lc_prepare (data from station 23B) ----
 #
 
 
-xtabs(~station + addNA(concentr_flag), polybrom)
+xtabs(~station + addNA(LOQ_flag), polybrom)
 
 # Prepare data
-data_test_orig <- subset(polybrom, station %in% "53B")
+data_test_orig <- subset(polybrom, station %in% "23B")
 
 # debugonce(lc_prepare)
-data_test_prep <- lc_prepare(data_test_orig)  
-# data_test_prep <- data_test_prep %>% filter(uncensored == 1)  
+data_test_prep <- lc_prepare(data_test_orig, 
+                        x = "year",
+                        y = "concentration", 
+                        censored = "LOQ_flag",
+                        log = TRUE)
 
-# CHECK 1
-check1 <- with(data_test_prep, y < threshold)
-sum(check1)
-
-# CHECK 2
-check2 <- with(data_test_prep, y == threshold)
-sum(check2)
-data_test_prep[check2,]
-
-# FIX CHECK 2
-data_test_prep$threshold[check2] <- data_test_prep$threshold[check2] - 1
-
-# NOW IT WORKS
+# . analysis using lc_linear ----  
 result <- lc_linear(data_test_prep, plot_input = TRUE, plot_norm = TRUE)  
 
 # Check
-
 str(result, 1)
 str(result$model_data, 1)
 
-# Test plot
+# . plot data and lc_linear result (base plot) ----
 
-# - plot data
-sel_uncens <- !data_test_orig$concentr_flag %in% "<" 
+sel_uncens <- !data_test_orig$LOQ_flag %in% "<" 
 plot(log(concentration) ~ year, 
      data = data_test_orig[sel_uncens,], 
      ylim = range(log(data_test_orig$concentration), na.rm = TRUE),
@@ -377,43 +597,27 @@ lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 
 
+# . plot data and lc_linear result (ggplot) ----
+
+ggplot(data_test_orig, aes(x = year)) +
+  geom_ribbon(data = result$plot_data, aes(x=x, ymin = y_lo, ymax = y_hi),
+              fill = "lightgreen") +
+  geom_abline(intercept = a, slope = b, color = "green3") +
+  geom_point(aes(y = log(concentration), color = is.na(LOQ_flag)))
 
 
+#
+# Linear MCMC (station 23B), comparing with ordinary LM ---- 
+#
 
-sel_uncens <- result$model_data$uncensored == 1
-plot(result$model_data$x[sel_uncens], result$model_data$x[sel_uncens], )
-
-ggplot(data_test_orig, aes(year, concentration, color = is.na(concentr_flag))) +
-  geom_point()  
-
-
-
-ggplot(data_test_orig, aes(year, log(concentration), color = is.na(concentr_flag))) +
-  geom_point()
-
-
-# Plot  
-
-ggplot() +
-  geom_jitter(
-    data = data_test_prep %>% filter(uncensored == 0), 
-    aes(x, threshold), width = 0.3
-    ) +
-  geom_jitter(
-    data = data_test_prep %>% filter(uncensored == 1), 
-    aes(x, y), width = 0.3, color = "red"
-  )
-  
-# Linear MCMC  
-
-debugonce(lc_linear)
+# debugonce(lc_linear)
 # debugonce(R2jags::jags)
 result <- lc_linear(data_test_prep, plot_input = TRUE, plot_norm = TRUE)  
 
 # Plot with regression line  
 a <- result$intercept["50%"]
 b <- result$slope["50%"]
-ggplot(data_test, aes(x, y_uncens)) +
+ggplot(data_test_prep, aes(x, y)) +
   geom_point(aes(y = threshold), shape = 1, size = 3, color = "red") +
   geom_point(aes(color = factor(uncensored))) +
   geom_abline(intercept = result$intercept["50%"], slope = result$slope["50%"])
@@ -421,19 +625,20 @@ ggplot(data_test, aes(x, y_uncens)) +
 # Plot with regression line and confidence interval   
 a <- result$intercept["50%"]
 b <- result$slope["50%"]
-ggplot(data_test, aes(x = x)) +
+ggplot(data_test_prep, aes(x = x)) +
   geom_ribbon(data = result$plot_data, aes(ymin = y_lo, ymax = y_hi), fill = "grey80") + 
   geom_point(aes(y = threshold), shape = 1, size = 3, color = "red") +
-  geom_point(aes(y = y_uncens, color = factor(uncensored))) +
+  geom_point(aes(y = y, color = factor(uncensored))) +
   geom_abline(intercept = result$intercept["50%"], slope = result$slope["50%"])
 
 # Slope from lc_linear
 result$slope
 
-# Slope from linear regression, ignoring "<"  
-ols <- summary(lm(y_uncens ~ x, data = data_test))$coef["x",]
+# Slope from linear regression, ignoring "<"
+mod <- lm(concentration ~ year, data = subset(data_test_orig, station == "23B"))
+ols <- summary(mod)$coef["year",]
 
-# Compare
+# Compare slopes  
 df_slopes <- bind_rows(
   data.frame(
     Analysis = "lc_linear",
@@ -451,13 +656,137 @@ ggplot(df_slopes, aes(x = Analysis)) +
 
 
 #
-# Spline MCMC  
+# Spline MCMC (station 23B) ---- 
 #
-result <- leftcensored_fixedsplines(data_test, x = "x", y = "y_uncens", uncensored = "uncensored", threshold = "threshold")
 
-plot(y_uncens ~ x, data = data_test)
-points(y_uncens ~ x, data = subset(data_test, uncensored == 0), pch = 20, col = "red")  
-lines(y ~ x, data = result$plot_data, col = "red")
-lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "red")
-lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "red")  
+result_2knots <- lc_fixedsplines(data_test_prep, 
+                                 x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                 knots = 2)
+result_3knots <- lc_fixedsplines(data_test_prep, 
+                                 x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                 knots = 3)
+result_4knots <- lc_fixedsplines(data_test_prep, 
+                                 x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                 knots = 4)
+result_5knots <- lc_fixedsplines(data_test_prep, 
+                                 x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                 knots = 5)
+result_6knots <- lc_fixedsplines(data_test_prep, 
+                                 x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                 knots = 6)
+
+plot_prediction <- function(jagsresult, title){
+  plot(log(concentration) ~ year, 
+       data = data_test_orig[sel_uncens,], 
+       ylim = range(log(data_test_orig$concentration), na.rm = TRUE),
+       pch = 16, col = 4, main = title)
+  points(log(concentration) ~ year, 
+         data = data_test_orig[!sel_uncens,], 
+         pch = 6, col = 2)
+  lines(y ~ x, data = jagsresult$plot_data, col = "red")
+  lines(y_lo ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")
+  lines(y_hi ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")  
+}
+
+plot_prediction(result_2knots, "Station 23B, 2 knots")
+plot_prediction(result_3knots, "Station 23B, 3 knots")
+plot_prediction(result_4knots, "Station 23B, 4 knots")
+plot_prediction(result_5knots, "Station 23B, 5 knots")
+plot_prediction(result_6knots, "Station 23B, 6 knots")
+
+#
+# . DIC calcultion 1 ----
+#
+# - DIC values are very similar for 2,3 and 4 knots, and for 5 and 6 knots.
+# - Also gives the following warning:
+#
+# Warning message:
+#   In rjags::dic.samples(result_2knots$model_from_jags$model, n.iter = 1000,  :
+#                           Failed to set mean monitor for pD
+#                         Support of observed nodes is not fixed
+#
+# The reason for this is that dinterval() function has a limitation in deviance calculation.
+# Qi et al. (2022) writes (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8944154/):
+#   In the presence of censored outcomes, even though the dinterval() function can 
+#   generate the proper posterior distribution of the parameters in JAGS, the likelihood 
+#   function is misspecified with the wrong focus of inference on the censored outcome 
+#   variable [22]. Instead, a constant value of 1 for the likelihood function, 
+#   or equivalently, a constant value of 0 for the deviance function, is misspecified 
+#   for the censored outcomes in the deviance monitor.
+# 
+# Also see Qi's Github:
+# https://github.com/xinyue-qi/Censored-Data-in-JAGS  
+
+rjags::dic.samples(result_2knots$model_from_jags$model, n.iter = 1000, type = "pD")
+rjags::dic.samples(result_3knots$model_from_jags$model, n.iter = 1000, type = "pD")
+rjags::dic.samples(result_4knots$model_from_jags$model, n.iter = 1000, type = "pD")
+
+#
+# . DIC calcultion 2  ----
+#
+# Has the same limitation as 
+
+dic <- c(
+  AICcmodavg::DIC(result_2knots$model_from_jags),
+  AICcmodavg::DIC(result_3knots$model_from_jags),
+  AICcmodavg::DIC(result_4knots$model_from_jags),
+  AICcmodavg::DIC(result_5knots$model_from_jags),
+  AICcmodavg::DIC(result_6knots$model_from_jags))
+plot(2:6, dic)
+
+
+#
+# Test truncation ---- 
+#
+# Based on
+# http://www.johnmyleswhite.com/notebook/2010/08/20/using-jags-in-r-with-the-rjags-package/
+# Linear regression example
+
+library(rjags)
+
+N <- 100
+x <- runif(N, 0, 10)
+epsilon <- rnorm(N, , 1)
+y <- x + epsilon
+# y[y<0] <- 0
+  
+dat <- data.frame(X = x, Y = y, Epsilon = epsilon)
+plot(Y ~ X, dat)
+
+write.table(
+  dat,
+  file = "C:/data/temp/example2.data",
+  row.names = FALSE,
+  col.names = TRUE
+)
+
+writeLines("model {
+    for (i in 1:N) {
+        y[i] ~ dnorm(y.hat[i], tau) T(0,)
+        y.hat[i] <- a + b * x[i]
+    }
+    a ~ dnorm(0, 0.0001)
+    b ~ dnorm(0, 0.0001)
+    tau <- pow(sigma, -2)
+    sigma ~ dunif(0, 100)
+}", "C:/data/temp/example2.bug")
+
+jags <- jags.model(
+  'C:/data/temp/example2.bug',
+  data = list(
+    'x' = x,
+    'y' = y,
+    'N' = N
+  ),
+  n.chains = 4,
+  n.adapt = 100
+)
+
+update(jags, 1000)
+
+X <- jags.samples(jags,
+             c('a', 'b'),
+             1000)
+hist(X$b[1, ,1])
+
 
