@@ -2,24 +2,30 @@
 % Please edit documentation in R/leftcensored_prepare.R
 \name{lc_prepare}
 \alias{lc_prepare}
-\title{Prepare data for lm_linear}
+\title{Prepare data for lc_linear}
 \usage{
 lc_prepare(
   data,
-  var_year = "Year",
-  var_concentration = "Conc",
-  var_LOQflag = "Flag",
+  x = "x",
+  y = "y",
+  censored = "LOQ_flag",
+  censored_value = "<",
+  log = FALSE,
   const = 0
 )
 }
 \arguments{
 \item{data}{Data set (a data frame)}
 
-\item{var_year}{Variable name of the variable with the year data}
+\item{x}{Variable name for the predictor variable}
 
-\item{var_concentration}{Variable name of the variable with the concentration data}
+\item{y}{Variable name of the response variable (for chemical data, concentration data)}
 
-\item{var_LOQflag}{Variable name of the variable with the LOQ flag}
+\item{censored}{Variable name of the variable with the LOQ flag}
+
+\item{censored_value}{Value of LOQ flag variable for values under LOQ, by default "<"}
+
+\item{log}{Value (TRUE/FALSE) for whether to log-transform concentrations or not (TRUE by default)}
 
 \item{const}{Constant to add before log-transformation (to avoid problems with log of zero)}
 }
@@ -27,8 +33,7 @@ lc_prepare(
 This function is meant for analysis of chemical concentration data as function of year. These data are given as
 two columns in the data: Concentration and LOQ flag. In our case, we assume that an empty LOQ flag
 indicates that the concentration is above the LOQ. A non-empty LOQ flag indicates that the concentration is below the LOQ,
-and the value given in the Concentration column is actually the LOQ. This procedure organises the data so the fit for lm_linear.
-In addition, the LOQ is not given when the data is above LOQ. This procedure also sets the LOQ for every observation, in the following way:
-For years with at least one observation below LOD, we use the lowest LOD. For years with no observations below LOD, LOD is set to be
-the lowest value - 10\%.
+and the value given in the Concentration column is actually the LOQ. This procedure organises the data so the fit for lc_linear,
+and applies the standard column names needed. In addition, the LOQ is not given when the data is above LOQ.
+This procedure also sets a 'mock' LOQ for uncensored data (lowest value - 1; this does not affect the analysis).
 }

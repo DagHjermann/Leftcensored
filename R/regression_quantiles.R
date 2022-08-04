@@ -8,7 +8,7 @@
 #' 
 #' @examples
 #' sim <- lc_simulate()
-#' result <- lm_linear(sim$data)
+#' result <- lc_linear(sim$data)
 #' regression_quantiles(sim$data, result$model)
 #' 
 #' @export

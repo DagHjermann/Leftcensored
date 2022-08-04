@@ -15,6 +15,10 @@ lc_linear(
   n.iter = 5000,
   n.burnin = 1000,
   n.thin = 2,
+  mean_y = NULL,
+  sd_y = NULL,
+  plot_input = FALSE,
+  plot_norm = FALSE,
   detailed = FALSE
 )
 }
@@ -83,7 +87,7 @@ plot(result$model)
 
 # Plot the trace for each MCMC run  
 par(mfrow = c(2,2), mar = c(2,4,3,1))
-traceplot(result$model, ask = FALSE)
+coda::traceplot(result$model, ask = FALSE)
 
 }
 \keyword{Statistics,}

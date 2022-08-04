@@ -5,7 +5,7 @@
 #' of quantification, LOQ, we we cannot measure it. We only know that the actual value is
 #' somewhere below LOQ. If the data are given as typical chemical measurements with one column
 #' containing "<" for measurements below LOQ, and the value column giving the LOQ value in those cases,
-#' you may want to use prepare_data() to make your data ready.
+#' you may want to use lc_prepare() to make your data ready.
 #' 
 #' @param data The data must have (at least) four columns: the predictor variable, the (uncensored) response variable, 
 #' a variable which is 1 for every uncensored observation, and a variable with the threshold of censoring for every censored observation
@@ -33,14 +33,14 @@
 #' of the parameters of the linear regression: intercept, slope and sigma (the estimated standard deviation of the data around the regression line).
 #' It is common to use the quantiles for parameter estimates, i.e., using the  
 #' 50% quantile as the "best estimate" of the parameters, and using the 2.5% and 97.5% quantiles as endpoints of a 95% confidence interval. 
-#' \code{model} is the output of the jags() command, which is what \code{leftcensored_lm()} runs under the hood for estimation. 
+#' \code{model} is the output of the jags() command, which is what \code{lc_linear()} runs under the hood for estimation. 
 #' It is an MCMC object, which has methods for functions such as plot (see ?mcmc). If you have some knowledge of the MCMC technique for     
 #' state-space models, this can be used for diagnostic plots of the model. See examples.
 #'   
 #' @examples
 #' # Simulate data and estimate regression
-#' sim <- leftcensored_simulate(n = 30)
-#' result <- leftcensored_lm(sim$data)
+#' sim <- lc_simulate(n = 30)
+#' result <- lc_linear(sim$data)
 #' 
 #' # Get best estimates and plot its regression line on top of the plot  
 #' a <- result$summary$quantiles["intercept", "50%"]
@@ -48,17 +48,22 @@
 #' abline(a, b, col = "green2")
 #' 
 #' # Example with real data
-#' # Prepare the data
-#' data_test <- prepare_data(concentrations)
-#' 
+#' # Prepare the data (including log-transformation)
+#' # We also choose to log-transform the data in this case 
+#' data_test <- lc_prepare(polybrom, 
+#'                         x = "year",
+#'                         y = "concentration", 
+#'                         censored = "LOQ_flag",
+#'                         log = TRUE)
+#'                          
 #' # Perform the analysis
-#' result <- leftcensored_lm(df_test2)
+#' result <- lc_linear(subset(data_test, station == "23B"))
 #' 
-#' # MCMC summary
+#' # MCMC summaryload_al
 #' result$summary
 #' 
-#' # Check quantiles of the parameters
-#' result$summary$quantiles
+#' # Check quantiles of the parameters (not shown here; long output)
+#' # result$summary$quantiles
 #' 
 #' # Make a standard MCMC plot: the trace and the density for each estimated parameter  
 #' par(mar = c(2,4,3,1))
@@ -66,10 +71,10 @@
 #' 
 #' # Plot the trace for each MCMC run  
 #' par(mfrow = c(2,2), mar = c(2,4,3,1))
-#' traceplot(result$model, ask = FALSE)
+#' coda::traceplot(result$model, ask = FALSE)
 #' 
 #' @export
-leftcensored_fixedsplines <- function(data,
+lc_fixedsplines <- function(data,
                             x = "x", 
                             y = "y_uncens", 
                             uncensored = "uncensored",

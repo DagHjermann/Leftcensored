@@ -6,9 +6,10 @@
 #' measurements and x is time in years, as chemical methods tends to improve (decrease the limit of detection) over the years.
 #' 
 #' @param n Number of simulated observations
-#' @param intercept Intercept of the linear relationship between y and x
-#' @param slope Slope of the linear relationship between y and x
-#' @param sigma Standard deviance around the linear relationship (the s.d. of y for a given x)
+#' @param intercept Intercept of the linear relationship between y and x (default = 30)  
+#' @param slope Slope of the linear relationship between y and x (default = -3)  
+#' @param sigma Standard deviance around the linear relationship (the s.d. of y for a given x; default = 4)
+#' @param x Values of x. If this is not set, values form 0 to 10 (uniform distribution) will be used
 #' @param threshold_1 threshold when x <= threshold_change
 #' @param threshold_2 threshold when x > threshold_change
 #' @param threshold_change The level of x when threshold changes from threshold_1 to threshold_2
@@ -20,7 +21,7 @@
 #' 4) uncensored (equals 0 for values below threshold and 1 for values above threshold); and 5) threshold (the threshold 
 #' value for each observation).
 #' 
-#' @seealso \code{\link{lm_leftcensored}}
+#' @seealso \code{\link{lc_linear}}
 #' 
 #' @examples 
 #' 
@@ -31,7 +32,7 @@
 #' sim <- lc_simulate(slope = -1.5, threshold_1 = 27, threshold_2 = 20)
 #' 
 #' # The data object of the output can be directly used in lm_leftcensored 
-#' result <- lm_linear(sim$data)
+#' result <- lc_linear(sim$data)
 #' 
 #' @export
 # Some R code to simulate data from the above model
@@ -40,6 +41,7 @@ lc_simulate <- function(
   intercept = 30,
   slope = -3,
   sigma = 4,
+  x = NULL,            # takes precedence over n (n is ignored if x is set)
   threshold_1 = 20,
   threshold_2 = 10,
   threshold_change = 4,
@@ -50,7 +52,12 @@ lc_simulate <- function(
     # Set the seed so this is repeatable
     set.seed(seed)
   }
-  x <- sort(runif(n, 0, 10)) # Sort as it makes the plotted lines neater
+
+  if (is.null(x)){
+    x <- sort(runif(n, 0, 10)) # Sort as it makes the plotted lines neater
+  } else {
+    n <- length(x)     # the given n is ignored if x is set
+  } 
   y <- rnorm(n, mean = intercept + slope * x, sd = sigma)
   
   threshold <- ifelse(x <= threshold_change, threshold_1, threshold_2)
