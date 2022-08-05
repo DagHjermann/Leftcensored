@@ -177,8 +177,9 @@ model
   }
   
   # Initial values  
-  init_model_df <- data.frame(x = data_obs[[x]], y.uncens = data_obs[[y]])
-  init_model <- lm(y.uncens ~ x, data = init_model_df)
+  init_model_df <- data.frame(
+    x = model_data$x, y = c(model_data$y.uncens, model_data$cut))
+  init_model <- lm(y ~ x, data = init_model_df)
   init_summ <- summary(init_model)$coef
   jags.inits <- function(){
     list("intercept" = rnorm(1, mean = init_summ[1,1], sd = init_summ[1,2]), 
