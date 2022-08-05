@@ -3,6 +3,25 @@
 # Start up ----
 #
 
+#
+# Note 5.8.2022: For some reason, after updating R and rjags,
+#   rjags will no longer start in RStudio. 
+#   However it starts in base R.
+
+# Error message:
+#   library(rjags)
+#   Error: package or namespace load failed for ‘rjags’ in get(method, envir = envir):
+#    lazy-load database 'C:/R/Library/rjags/R/rjags.rdb' is corrupt
+#   In addition: Warning message:
+#   In get(method, envir = envir) : internal error -3 in R_decompress1
+
+
+# For Base R use (outside RStudio):
+# setwd("C:/Data/R_packages/leftcensored")
+
+# Also see "zeroes trick", e.g. here:
+# https://sourceforge.net/p/mcmc-jags/discussion/610036/thread/17f237b2/
+
 library(devtools)
 # library(ggplot2)
 # library(mgcv)
@@ -10,7 +29,9 @@ library(devtools)
 load_all()
 
 #
-# Checking, adding packages ..... -----
+# Checking ..... -----
+#
+# adding packages / fixing functions / fixing documentation between checks  
 #
 
 check()
@@ -51,8 +72,6 @@ sim <- lc_simulate(n = 30)   # also plots the data
 # debugonce(lc_linear)
 result <- lc_linear(sim$data)
 
-# debugonce(lc_linear_qi)
-result <- lc_linear_qi(sim$data)
 
 # Get best estimate fitted line       
 a <- result$intercept["50%"]
@@ -76,6 +95,30 @@ pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
 #' # Make a standard MCMC plot: the trace and the density for each estimated parameter  
 #' par(mar = c(2,4,3,1))
 #' plot(result$model)
+
+
+#
+# . Qi version ----
+#
+
+set.seed(11)
+sim <- lc_simulate(n = 30)
+
+# debugonce(lc_linear_qi)
+result <- lc_linear_qi(sim$data)
+
+# Get best estimates and plot its regression line on top of the plot  
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+abline(a, b, col = "green4")
+# Add confidence interval  
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green4")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green4")
+
+# DIC
+result$dic
+
+
 
 #
 # LR with measurement error ----
