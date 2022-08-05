@@ -3,7 +3,7 @@
 #' This function runs linear regression when the dependent (y) variable is left-censored. That is,
 #' if the actual value is below some below some limit of quantification, LOQ, we we cannot measure it. We only know that the 
 #' actual value is somewhere below LOQ. The variables need to have particular names, so you may want to use
-#' prepare_data() to make your data ready for this function.
+#' prepare_data() to make your data ready for this function. This veriosn uses the method of Qi et al. (2022).
 #' 
 #' @param data The data must have (at least) four columns: the predictor variable, the (uncensored) response variable, 
 #' a variable which is 1 for every uncensored observation, and a variable with the threhold of censoring for every censored observation
@@ -187,25 +187,72 @@ model
          "sigma" = runif(1))
   }
   
+  #
   ### Run model
-  # Run the model
-  model_run <- R2jags::jags(
-    data = model_data,
-    init = jags.inits,
-    parameters.to.save = model_parameters,
-    model.file=textConnection(model_code),
+  #
+  
+  # Alt. 1. Run the model using R2jags::jags
+  
+  # model_run <- R2jags::jags(
+  #   data = model_data,
+  #   init = jags.inits,
+  #   parameters.to.save = model_parameters,
+  #   model.file=textConnection(model_code),
+  #   n.chains=n.chains,   # Number of different starting positions
+  #   n.iter = n.iter,     # Number of iterations
+  #   n.burnin = n.burnin, # Number of iterations to remove at start
+  #   n.thin = n.thin)     # Amount of thinning
+  
+  # R2jags::jags workflow continues with:  
+  #   model_mcmc <- coda::as.mcmc(model_run)
+  #   summary <- summary(model_mcmc)
+  
+  # Alt. 2: Run the model using rjags::jags.model
+  #   As used in 'Binomial Data' in
+  #   https://github.com/xinyue-qi/Censored-Data-in-JAGS/blob/main/R_program.md
+  # parameters.to.save - specified in coda.samples
+  # n.burnin           - specified in coda.samples 
+  # n.thin             - specified in coda.samples
+  
+  # Inital run
+  model_run <- rjags::jags.model(
+    data = model_data,     
+    inits = jags.inits,   #  (note argument name)
+    file = textConnection(model_code),  #  (note argument name)
     n.chains=n.chains,   # Number of different starting positions
-    n.iter = n.iter,     # Number of iterations
-    n.burnin = n.burnin, # Number of iterations to remove at start
-    n.thin = n.thin)     # Amount of thinning
+    n.adapt = n.iter     # Number of iterations (note argument name)
+  )
   
+  # Updating model
+  update(model_run, 30000)   # may also use R2jags::autojags ?
   
-  # model_run
-  model_mcmc <- coda::as.mcmc(model_run)
-  # summary(model_mcmc) %>% str()
-  
-  summary <- summary(model_mcmc)
+  # Sample from the last 30000
+  model_samples <- rjags::coda.samples(model=model_run, 
+                                variable.names = model_parameters, 
+                                n.iter=30000, 
+                                thin=3)
 
+  # Summarize samples
+  summary <- summary(model_samples)
+  
+  #
+  # DIC
+  #
+  dic.pd <- dic.samples(model=model_run, n.iter=30000, type="pD"); dic.pd
+  
+  # Not used now:
+  # dic.popt <- dic.samples(model=model_run, n.iter=30000, type="popt"); dic.popt
+  
+  # Select the observations for which we got penalties
+  dic.sel.pd <- !is.nan(dic.pd$penalty )
+  
+  # Get penalties and deviances for those
+  pd <- dic.pd$penalty[dic.sel.pd]
+  deviance <- dic.pd$deviance[dic.sel.pd]
+  
+  # Calculate DIC
+  dic <- sum(deviance) + sum(pd)
+  
   #
   # Get predicted line 
   #
@@ -240,15 +287,18 @@ model
   # Where the two parentheses are the back-transformed intercept and slope, respectively
   #
   
-  list(summary = summary(model_mcmc),
+  list(summary = summary,             # summary of the mcmc.list object, contains quantiles
        plot_data = plot_data,
        intercept = intercept,
        slope = slope,
-       model_data = model_data,     # 
-       model = model_mcmc,
+       model_data = model_data,       # jags object
+       model_samples = model_samples, # mcmc.list object
+       model = model_run,
        mean_y = mean_y,
        sd_y = sd_y,
-       norm_y = norm_y)
+       norm_y = norm_y,
+       dic_all = dic.pd,
+       dic = dic)
   
 }
 
