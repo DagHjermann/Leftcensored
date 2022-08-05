@@ -3,5 +3,8 @@
 ^Test_area$
 ^Test_script\.R$
 ^Test_script_for_job\.R$
+^Test_script agriCens\.R$
+^starchGrainU\.rda$
+^Test_script zeroes trick\.R$
 
 ^LICENSE\.md$
