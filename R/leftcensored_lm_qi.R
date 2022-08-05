@@ -110,7 +110,7 @@ model
   # Censored observations 
   for (c in 1:C) {
     Z1[c] ~ dbern(p[c])
-    p[c] ~ pnorm(cut[c], intercept + slope * x[O+c])
+    p[c] <- pnorm(cut[c], intercept + slope * x[O+c], sigma^-2)
   }
   for (i in 1:resolution) {
     y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
