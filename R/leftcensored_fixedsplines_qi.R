@@ -105,6 +105,15 @@ lc_fixedsplines_qi <- function(data,
   data_cen <- data[data[[uncensored]] %in% 0,]
   data_all <- rbind(data_obs, data_cen)
   
+  # Normalize x and y
+  data_all_original <- data_all
+  norm <- normalize_lm(data_all[[x]], c(data_obs[[y]], data_cen[[threshold]]))
+  data_obs[[x]] <- norm$x[data[[uncensored]] %in% 1]
+  data_obs[[y]] <- norm$y[data[[uncensored]] %in% 1]
+  data_cen[[x]] <- norm$x[data[[uncensored]] %in% 0]
+  data_cen[[threshold]] <- norm$y[data[[uncensored]] %in% 0]
+  data_all[[x]] <- norm$x
+  
   # For making predicted lines (with SE) 
   xmin <- min(data_all[[x]], na.rm = TRUE)
   xmax <- max(data_all[[x]], na.rm = TRUE)
@@ -222,11 +231,16 @@ model
   quants <- summary$quantiles
   length.out <- length(x.out)
   pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
+  # Denormalize predicted data
+  denorm_med <- denormalize_lm(x.out, quants[pick_rownames,"50%"], norm$parameters)
+  denorm_lo <- denormalize_lm(x.out, quants[pick_rownames,"2.5%"], norm$parameters)
+  denorm_hi <- denormalize_lm(x.out, quants[pick_rownames,"97.5%"], norm$parameters)
+  # Data for plottong predicted lines  
   plot_data <- data.frame(
-    x = x.out, 
-    y = quants[pick_rownames,"50%"],
-    y_lo = quants[pick_rownames,"2.5%"],
-    y_hi = quants[pick_rownames,"97.5%"]
+    x = denorm_med$x, 
+    y = denorm_med$y,
+    y_lo = denorm_lo$y,
+    y_hi = denorm_hi$y
   )
   
   list(summary = summary,
