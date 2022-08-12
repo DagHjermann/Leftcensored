@@ -74,7 +74,7 @@
 #' coda::traceplot(result$model, ask = FALSE)
 #' 
 #' @export
-lc_fixedsplines <- function(data,
+lc_fixedsplines_qi <- function(data,
                             x = "x", 
                             y = "y_uncens", 
                             uncensored = "uncensored",
@@ -126,12 +126,19 @@ model
   y.hat.out <- a0*x.out + a %*% B.out ## expected response  
   
   # Likelihood
-  for (i in 1:n){
-    uncensored[i] ~ dinterval(y[i], threshold[i]) 
-    y[i] ~ dnorm(y.hat[i], tau)
+  # Uncensored observations 
+  for (o in 1:O) {
+    y.uncens[o] ~ dnorm(y.hat[o], sigma^-2)
   }
+  # Censored observations 
+  for (c in 1:C) {
+    Z1[c] ~ dbern(p[c])
+    p[c] <- max(pnorm(cut[c], y.hat[O+c], sigma^-2), 0.01)
+  }
+
   sigma <- 1/tau         ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
+  
   # Linear effect  
   a0 ~ dnorm(0, lambda[1])
   
@@ -149,15 +156,36 @@ model
 '
   ### Set up data and parameters
   # Set up the data
-  model_data <- list('n' = nrow(data), 
-                    'y' = data[[y]], 
-                    'uncensored' = data[[uncensored]],
-                    'threshold' = data[[threshold]],
-                    'x' = data[[x]],
-                    'x.out' = x.out,
-                    'B' = B,
-                    'B.out' = B.out,
-                    'K' = dim(B)[1])
+  # model_data <- list('n' = nrow(data), 
+  #                   'y.uncens' = data[[y]], 
+  #                   'uncensored' = data[[uncensored]],
+  #                   'threshold' = data[[threshold]],
+  #                   'x' = data[[x]],
+  #                   'x.out' = x.out,
+  #                   'B' = B,
+  #                   'B.out' = B.out,
+  #                   'K' = dim(B)[1])
+  
+  # Set up the data for Qi's method
+  # Data has NOT normalized y values and centralized x values (in contrast to leftcensored_lm / leftcensored_lm_qi)
+  
+  # Split the data into uncensored and censored parts
+  data_obs <- data[data[[uncensored]] %in% 1,]
+  data_cen <- data[data[[uncensored]] %in% 0,]
+  data_all <- rbind(data_obs, data_cen)
+  
+  model_data <- list('y.uncens' = data_obs[[y]],
+                     'O' = nrow(data_obs),
+                     'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     'cut' = data_cen[[threshold]],
+                     'C' = nrow(data_cen),
+                     'x' = data[[x]],
+                     'x.out' = x.out,
+                     'B' = B,
+                     'B.out' = B.out,
+                     'K' = dim(B)[1])
+  
+  
   # Choose the parameters to watch
   model_parameters <-  c('a0', 'a', 'sigma','tau','y.hat.out')
   
@@ -172,7 +200,7 @@ model
                    n.thin = n.thin)     # Amount of thinning
   
   # Auto update until it converges
-  model_result <- autojags(model_first_result)
+  model_result <- R2jags::autojags(model_first_result)
   
   # model_result
   model_mcmc <- coda::as.mcmc(model_result)

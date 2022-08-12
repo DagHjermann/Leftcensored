@@ -620,6 +620,10 @@ data_test_prep <- lc_prepare(data_test_orig,
 # . analysis using lc_linear ----  
 result <- lc_linear(data_test_prep, plot_input = TRUE, plot_norm = TRUE)  
 
+# Qi version of the same (2 minutes)
+# debugonce(lc_linear_qi)
+result <- lc_linear_qi(data_test_prep)  
+
 # Check
 str(result, 1)
 str(result$model_data, 1)
@@ -721,6 +725,14 @@ result_5knots <- lc_fixedsplines(data_test_prep,
 result_6knots <- lc_fixedsplines(data_test_prep, 
                                  x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
                                  knots = 6)
+
+#
+# Qi version ----
+#
+debugonce(lc_fixedsplines_qi)
+result_3knots <- lc_fixedsplines_qi(data_test_prep, 
+                                    x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                    knots = 3)
 
 plot_prediction <- function(jagsresult, title){
   plot(log(concentration) ~ year, 
