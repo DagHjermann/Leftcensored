@@ -146,6 +146,7 @@ model
     y.uncens[o] ~ dnorm(y.hat[o], sigma^-2)
   }
   # Censored observations 
+  # Use max(..., 0.01) for p[c] to avoid that it can become practically zero
   for (c in 1:C) {
     Z1[c] ~ dbern(p[c])
     p[c] <- max(pnorm(cut[c], y.hat[O+c], sigma^-2), 0.01)
@@ -169,18 +170,7 @@ model
   }
 }
 '
-  ### Set up data and parameters
-  # Set up the data
-  # model_data <- list('n' = nrow(data), 
-  #                   'y.uncens' = data[[y]], 
-  #                   'uncensored' = data[[uncensored]],
-  #                   'threshold' = data[[threshold]],
-  #                   'x' = data[[x]],
-  #                   'x.out' = x.out,
-  #                   'B' = B,
-  #                   'B.out' = B.out,
-  #                   'K' = dim(B)[1])
-  
+
   # Set up the data for Qi's method
   # Data has NOT normalized y values and centralized x values (in contrast to leftcensored_lm / leftcensored_lm_qi)
   
@@ -207,12 +197,12 @@ model
     data = model_data,
     monitor = c('sigma', 'dic'),     # adding 'a0' caused very slow convergece
     model = model_code,
-    n.chains = n.chains,   # Number of different starting positions
+    n.chains = n.chains,    # Number of different starting positions
     startsample = 4000,     # Number of iterations
     startburnin = n.burnin, # Number of iterations to remove at start
-    thin = n.thin)     # Amount of thinning
+    thin = n.thin)          # Amount of thinning
   
-  # Add all model parameters and run more samples
+  # Add all model parameters and get samples for them
   model_result <- runjags::extend.jags(model_converged, 
                                        add.monitor = model_parameters,
                                        sample = n.iter)
