@@ -172,7 +172,7 @@ model
                    n.thin = n.thin)     # Amount of thinning
   
   # Auto update until it converges
-  model_result <- autojags(model_first_result)
+  model_result <- R2jags::autojags(model_first_result)
   
   # model_result
   model_mcmc <- coda::as.mcmc(model_result)
