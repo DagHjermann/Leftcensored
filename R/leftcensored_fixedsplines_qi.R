@@ -82,7 +82,7 @@ lc_fixedsplines_qi <- function(data,
                             knots = 9,
                             resolution = 50,
                             n.chains = 4, 
-                            n.iter = 5000, 
+                            n.iter = 2000, 
                             n.burnin = 1000, 
                             n.thin = 2){
   
@@ -100,9 +100,14 @@ lc_fixedsplines_qi <- function(data,
   # All the values of 'uncensored' that are not 1, will be set to 
   data[[uncensored]][!data[[uncensored]] == 1] <- 0
   
+  # Split the data into uncensored and censored parts
+  data_obs <- data[data[[uncensored]] %in% 1,]
+  data_cen <- data[data[[uncensored]] %in% 0,]
+  data_all <- rbind(data_obs, data_cen)
+  
   # For making predicted lines (with SE) 
-  xmin <- min(data[[x]], na.rm = TRUE)
-  xmax <- max(data[[x]], na.rm = TRUE)
+  xmin <- min(data_all[[x]], na.rm = TRUE)
+  xmax <- max(data_all[[x]], na.rm = TRUE)
   x.out <- seq(xmin, xmax, length = resolution)
   
   # Create knots and splinen basis functions  
@@ -110,7 +115,7 @@ lc_fixedsplines_qi <- function(data,
     knots <- seq(xmin, xmax, length = knots)
 
   # Generate basis splines at the observed x values, using splines::bs()  
-  B <- t(splines::bs(data[[x]], knots = knots, degree=3, intercept = TRUE)) 
+  B <- t(splines::bs(data_all[[x]], knots = knots, degree=3, intercept = TRUE)) 
   B.out <- t(splines::bs(x.out, knots = knots, degree=3, intercept = TRUE)) 
   
   # Generate basis splines for describing predicted spline line   
@@ -122,6 +127,7 @@ lc_fixedsplines_qi <- function(data,
   model_code = '
 model
 {
+
   y.hat <- a0*x + a %*% B ## expected response  
   y.hat.out <- a0*x.out + a %*% B.out ## expected response  
   
@@ -169,17 +175,14 @@ model
   # Set up the data for Qi's method
   # Data has NOT normalized y values and centralized x values (in contrast to leftcensored_lm / leftcensored_lm_qi)
   
-  # Split the data into uncensored and censored parts
-  data_obs <- data[data[[uncensored]] %in% 1,]
-  data_cen <- data[data[[uncensored]] %in% 0,]
-  data_all <- rbind(data_obs, data_cen)
+  # norm <- normalize_lm(data_all[[x]]))
   
   model_data <- list('y.uncens' = data_obs[[y]],
                      'O' = nrow(data_obs),
                      'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
                      'cut' = data_cen[[threshold]],
                      'C' = nrow(data_cen),
-                     'x' = data[[x]],
+                     'x' = data_all[[x]],
                      'x.out' = x.out,
                      'B' = B,
                      'B.out' = B.out,
@@ -190,18 +193,23 @@ model
   model_parameters <-  c('a0', 'a', 'sigma','tau','y.hat.out')
   
   ### Run model
-  # Run the model
+  # Initial run, using just sigma and dic 
   model_first_result <- runjags::run.jags(
     data = model_data,
-    monitor = model_parameters,
+    monitor = c('sigma', 'dic'),     # adding 'a0' caused very slow convergece
     model = model_code,
     n.chains = n.chains,   # Number of different starting positions
-    sample = n.iter,     # Number of iterations
+    sample = 1000,     # Number of iterations
     burnin = n.burnin, # Number of iterations to remove at start
     thin = n.thin)     # Amount of thinning
   
   # Auto update until it converges
-  model_result <- runjags::autoextend.jags(model_first_result)
+  model_converged <- runjags::autoextend.jags(model_first_result, startsample = 4000)
+  
+  # Auto update until it converges
+  model_result <- runjags::extend.jags(model_converged, 
+                                       add.monitor = model_parameters,
+                                       sample = n.iter)
   
   # model_result
   model_mcmc <- coda::as.mcmc(model_result)

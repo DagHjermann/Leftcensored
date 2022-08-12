@@ -729,26 +729,31 @@ result_6knots <- lc_fixedsplines(data_test_prep,
 #
 # Qi version ----
 #
-debugonce(lc_fixedsplines_qi)
-result_3knots <- lc_fixedsplines_qi(data_test_prep, 
+# debugonce(lc_fixedsplines_qi)
+result_3knots_qi <- lc_fixedsplines_qi(data_test_prep, 
                                     x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
                                     knots = 3)
 
-plot_prediction <- function(jagsresult, title){
+plot_prediction <- function(data, jagsresult, title){
+  sel_uncens <- is.na(data$LOQ_flag)
   plot(log(concentration) ~ year, 
-       data = data_test_orig[sel_uncens,], 
-       ylim = range(log(data_test_orig$concentration), na.rm = TRUE),
+       data = data[sel_uncens,], 
+       ylim = range(log(data$concentration), na.rm = TRUE),
        pch = 16, col = 4, main = title)
   points(log(concentration) ~ year, 
-         data = data_test_orig[!sel_uncens,], 
+         data = data[!sel_uncens,], 
          pch = 6, col = 2)
   lines(y ~ x, data = jagsresult$plot_data, col = "red")
   lines(y_lo ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")
   lines(y_hi ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")  
 }
 
-plot_prediction(result_2knots, "Station 23B, 2 knots")
-plot_prediction(result_3knots, "Station 23B, 3 knots")
+plot_prediction(data_test_orig, result_2knots, "Station 23B, 2 knots")
+plot_prediction(data_test_orig, result_3knots, "Station 23B, 3 knots")
+plot_prediction(data_test_orig, result_3knots_qi, "Station 23B, 3 knots, Qi method")
+
+denormalize_reg()
+
 plot_prediction(result_4knots, "Station 23B, 4 knots")
 plot_prediction(result_5knots, "Station 23B, 5 knots")
 plot_prediction(result_6knots, "Station 23B, 6 knots")
