@@ -82,9 +82,9 @@ lc_fixedsplines_qi <- function(data,
                             knots = 9,
                             resolution = 50,
                             n.chains = 4, 
-                            n.iter = 2000, 
+                            n.iter = 1000, 
                             n.burnin = 1000, 
-                            n.thin = 2){
+                            n.thin = 1){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -203,19 +203,16 @@ model
   
   ### Run model
   # Initial run, using just sigma and dic 
-  model_first_result <- runjags::run.jags(
+  model_converged <- runjags::autorun.jags(
     data = model_data,
     monitor = c('sigma', 'dic'),     # adding 'a0' caused very slow convergece
     model = model_code,
     n.chains = n.chains,   # Number of different starting positions
-    sample = 1000,     # Number of iterations
-    burnin = n.burnin, # Number of iterations to remove at start
+    startsample = 4000,     # Number of iterations
+    startburnin = n.burnin, # Number of iterations to remove at start
     thin = n.thin)     # Amount of thinning
   
-  # Auto update until it converges
-  model_converged <- runjags::autoextend.jags(model_first_result, startsample = 4000)
-  
-  # Auto update until it converges
+  # Add all model parameters and run more samples
   model_result <- runjags::extend.jags(model_converged, 
                                        add.monitor = model_parameters,
                                        sample = n.iter)
