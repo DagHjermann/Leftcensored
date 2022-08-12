@@ -2,29 +2,28 @@
 % Please edit documentation in R/normalize_lm.R
 \name{normalize_lm}
 \alias{normalize_lm}
-\title{Normalization and removal of linear trend}
+\title{Normalization and removal of correlation}
 \usage{
 normalize_lm(x, y)
 }
 \arguments{
-\item{x}{A vector}
+\item{x}{}
 
-\item{y}{A vector}
+\item{y}{}
 }
 \value{
-The function returns a list with three elements: \code{x} and \code{y}, the normalized x and y variables, and
-\code{parameters}, which contains the parameters needed to denormalize the data (e.g. restore the original values of x and y).
+List of x, y and parameters
 }
 \description{
-This function takes two variables x and y as an input, and removes the linear trend between them as well as
-normalizes the resulting variables (to mean = 0 and standard deviation = 1). Removal of the linear tremd is done using lm().
+This function takes two variables x and y as an input, and removes the linear part of the correlation between them, as well as
+normalizes the resulting variables (to mean = 0 and standard deviation = 1). Removal of the linear trend is done using lm(y ~ x).
 }
 \examples{
 
 # Example data
 n <- 50
 x2 <- seq(-30,18, length = n)
-x <- x + 31
+x <- x2 + 31
 y <- 50 + (-x2^3 -12*x2^2 + 800*x2)/300 + rnorm(n, sd = 5)
 
 # Normalization
@@ -37,7 +36,12 @@ plot(denorm$x, denorm$y, main = "Normalized and denormalized data")
 
 # Compare with the original data  
 plot(x, y, main = "Original data")
+ 
+# De-normalize new data
+x_new <- c(-1.5, 1.5, 1.5, -1.5)
+y_new <- c(-2, -2, 2, 2)
+
+denorm <- denormalize_lm(norm$x, norm$y, norm$parameters)
+plot(denorm$x, denorm$y, main = "Normalized and denormalized data")
 
 }
-\keyword{Statistics,}
-\keyword{regression}

@@ -37,3 +37,31 @@ and the value given in the Concentration column is actually the LOQ. This proced
 and applies the standard column names needed. In addition, the LOQ is not given when the data is above LOQ.
 This procedure also sets a 'mock' LOQ for uncensored data (lowest value - 1; this does not affect the analysis).
 }
+\examples{
+
+# The 'polybrom' data set contains the variables 'year', 'concentration' (concentration of a 
+# polybrominated substance), and 'LOQ_flag' ('<' for measurements under LOQ, the Limit Of Quantification).
+# The measurements are from three different stations. See help("polybrom").
+
+# Show the data in the original dataset:
+library(ggplot2)
+ggplot(polybrom, aes(year, concentration, color = LOQ_flag)) + 
+  geom_point() + 
+  facet_wrap(vars(station)) 
+
+# Make the data ready for analysis
+# We also choose to log-transform the data in this case 
+polybrom_for_analysis <- lc_prepare(polybrom, 
+                                    x = "year", 
+                                    y = "concentration", 
+                                    censored = "LOQ_flag",
+                                    log = TRUE)
+                                    
+# x, y and LOQ variables are given standard names (other variables are left unchanged). 
+# 'y' is set to NA for censored data:  
+ggplot(polybrom_for_analysis, aes(x, y, color = factor(uncensored))) + geom_point() + facet_wrap(vars(station))
+
+# 'threshold' is set to a random value (lower than observed values) for all uncensored data:
+ggplot(polybrom_for_analysis, aes(x, threshold, color = factor(uncensored))) + geom_point() + facet_wrap(vars(station))
+
+}

@@ -13,9 +13,9 @@ lc_fixedsplines_qi(
   knots = 9,
   resolution = 50,
   n.chains = 4,
-  n.iter = 2000,
+  n.iter = 1000,
   n.burnin = 1000,
-  n.thin = 2
+  n.thin = 1
 )
 }
 \arguments{

@@ -18,7 +18,7 @@
 #' 
 #' @import dplyr
 #' 
-#' @example 
+#' @examples 
 #' 
 #' # The 'polybrom' data set contains the variables 'year', 'concentration' (concentration of a 
 #' # polybrominated substance), and 'LOQ_flag' ('<' for measurements under LOQ, the Limit Of Quantification).

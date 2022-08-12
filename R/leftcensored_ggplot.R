@@ -15,8 +15,7 @@
 #'                         censored = "LOQ_flag",
 #'                         log = TRUE)
 #'                         
-#' lc_ggplot(data_prepared, type = 1)
-#' gg
+#' gg <- lc_ggplot(data_prepared, type = 1)
 #' 
 #' Faceting, themes etc. can be added to the final object
 #' gg + facet_wrap(vars(station))
