@@ -191,16 +191,17 @@ model
   
   ### Run model
   # Run the model
-  model_first_result <- R2jags::jags(data = model_data,
-                   parameters.to.save = model_parameters,
-                   model.file=textConnection(model_code),
-                   n.chains=n.chains,   # Number of different starting positions
-                   n.iter = n.iter,     # Number of iterations
-                   n.burnin = n.burnin, # Number of iterations to remove at start
-                   n.thin = n.thin)     # Amount of thinning
+  model_first_result <- runjags::run.jags(
+    data = model_data,
+    monitor = model_parameters,
+    model = model_code,
+    n.chains = n.chains,   # Number of different starting positions
+    sample = n.iter,     # Number of iterations
+    burnin = n.burnin, # Number of iterations to remove at start
+    thin = n.thin)     # Amount of thinning
   
   # Auto update until it converges
-  model_result <- R2jags::autojags(model_first_result)
+  model_result <- runjags::autoextend.jags(model_first_result)
   
   # model_result
   model_mcmc <- coda::as.mcmc(model_result)
