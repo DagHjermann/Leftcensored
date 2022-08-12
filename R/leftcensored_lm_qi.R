@@ -238,7 +238,7 @@ model
   #
   # DIC
   #
-  dic.pd <- dic.samples(model=model_run, n.iter=30000, type="pD"); dic.pd
+  dic.pd <- rjags::dic.samples(model=model_run, n.iter=30000, type="pD"); dic.pd
   
   # Not used now:
   # dic.popt <- dic.samples(model=model_run, n.iter=30000, type="popt"); dic.popt

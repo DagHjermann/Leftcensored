@@ -35,6 +35,7 @@ load_all()
 #
 
 check()
+# use_package('rjags')
 # use_package('dplyr')
 # use_package('ggplot2', 'suggests')
 # use_mit_license()
@@ -129,7 +130,7 @@ result$dic
 #
 
 set.seed(11)
-sim <- lc_simulate(n = 30)
+sim <- lc_simulate(n = 30)  
 
 result <- lc_linear_measerror(sim$data, measurement_error = 0.1)  
 # result <- lc_linear_measerror(sim$data, measurement_error = 0.1, detailed = TRUE)  
