@@ -225,9 +225,27 @@ model
   
   summary <- summary(model_mcmc)
   
-  # summary(model_mcmc) %>% str()
+  #
+  # DIC
+  #
+  dic.pd <- rjags::dic.samples(model = runjags::as.jags(model_result), n.iter=1000, type="pD"); dic.pd
   
+  # Not used now:
+  # dic.popt <- dic.samples(model=model_run, n.iter=30000, type="popt"); dic.popt
+  
+  # Select the observations for which we got penalties
+  dic.sel.pd <- !is.nan(dic.pd$penalty )
+  
+  # Get penalties and deviances for those
+  pd <- dic.pd$penalty[dic.sel.pd]
+  deviance <- dic.pd$deviance[dic.sel.pd]
+  
+  # Calculate DIC
+  dic <- sum(deviance) + sum(pd)
+  
+  #
   # Get predicted line 
+  #
   quants <- summary$quantiles
   length.out <- length(x.out)
   pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
@@ -246,7 +264,8 @@ model
   list(summary = summary,
        plot_data = plot_data,
        model = model_mcmc,
-       model_from_jags = model_result)
-  
+       model_from_jags = model_result,
+       dic_all = dic.pd,
+       dic = dic)  
   
 }
