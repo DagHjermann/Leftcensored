@@ -730,9 +730,21 @@ result_6knots <- lc_fixedsplines(data_test_prep,
 # Qi version ----
 #
 # debugonce(lc_fixedsplines_qi)
+result_linear_qi <- lc_linear_qi(data_test_prep, 
+                                 x = "x", y = "y", uncensored = "uncensored", threshold = "threshold")
+result_2knots_qi <- lc_fixedsplines_qi(data_test_prep, 
+                                       x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                       knots = 2)
 result_3knots_qi <- lc_fixedsplines_qi(data_test_prep, 
                                     x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
                                     knots = 3)
+result_4knots_qi <- lc_fixedsplines_qi(data_test_prep, 
+                                       x = "x", y = "y", uncensored = "uncensored", threshold = "threshold",
+                                       knots = 4)
+result_linear_qi$dic
+result_2knots_qi$dic
+result_3knots_qi$dic
+result_4knots_qi$dic
 
 plot_prediction <- function(data, jagsresult, title){
   sel_uncens <- is.na(data$LOQ_flag)
@@ -750,9 +762,11 @@ plot_prediction <- function(data, jagsresult, title){
 
 plot_prediction(data_test_orig, result_2knots, "Station 23B, 2 knots")
 plot_prediction(data_test_orig, result_3knots, "Station 23B, 3 knots")
-plot_prediction(data_test_orig, result_3knots_qi, "Station 23B, 3 knots, Qi method")
 
-denormalize_reg()
+plot_prediction(data_test_orig, result_linear_qi, "Station 23B, linear, Qi's method")
+plot_prediction(data_test_orig, result_2knots_qi, "Station 23B, 2 knots, Qi's method")
+plot_prediction(data_test_orig, result_3knots_qi, "Station 23B, 3 knots, Qi's method")
+plot_prediction(data_test_orig, result_4knots_qi, "Station 23B, 4 knots, Qi's method")
 
 plot_prediction(result_4knots, "Station 23B, 4 knots")
 plot_prediction(result_5knots, "Station 23B, 5 knots")
