@@ -20,9 +20,9 @@
 #' @param knots Either a single number for the number of equidistant knots, or a vector giving
 #' the placement of the knots.   
 #' @param resolution The number of points along the x axis used to describe the spline. 
-#' @param n.iter The number of iterations for each MCMC chains. The default is 5000, which is usually sufficient for this application.
-#' @param n.burnin The number of iterations to remove at start of each MCMC chain, before results are collected for statistics. The default is 1000.
-#' If n.burnin is too small, plots of the trace (see examples) will show whether the chains are homogeneous along the chain (there should be from 
+#' @param n.iter The number of iteratioterations to remove at start of each MCMC chain, before results are collected for statistics. The default is 1000.
+#' If n.burnin is too small, plons for each MCMC chains. The default is 5000, which is usually sufficient for this application.
+#' @param n.burnin The number of its of the trace (see examples) will show whether the chains are homogeneous along the chain (there should be from 
 #' no decreasing or increasing trend in the traceplot). One can also use R2jags::traceplot to assess whether the chains behave differently, 
 #' depending on their diferent starting point. If they do, n.burnin should be increased.
 #' @param n.thin The number of MCMC iterations that are kept for statistics.
@@ -48,44 +48,50 @@
 #'   
 #' @examples
 #' # Simulate data and estimate regression
-#' sim <- lc_simulate(n = 30)
-#' result <- lc_linear(sim$data)
+#'X <- seq(from=-1, to=1, by=.025) # generating inputs
+#'B <- t(splines::bs(X, knots=seq(-1,1,1), degree=3, intercept = TRUE)) # creating the B-splines
+#'num_data <- length(X); num_basis <- nrow(B)
+#'a0 <- 0.2 # intercept
+#'
+#'set.seed(991)
+#'# num_basis <- 6
+#'a <- rnorm(num_basis, 0, 1) # coefficients of B-splines
+#'n_param <- length(a)
+#'
+#'Y_true <- as.vector(a0*X + a%*%B) # generating the output
+#'Y <- Y_true + rnorm(length(X),0,.1) # adding noise
+#'
+#'dat_sim <- data.frame(x = X, y_uncensored = Y, y_true = Y_true)
+#'# ggplot(dat_sim, aes(x, y_uncensored)) +
+#'#   geom_point() +
+#'#   geom_line(aes(y = y_true), color = "blue")
+#'
+#'# Add censoring 
+#'dat_sim$y <- dat_sim$y_uncensored
+#'dat_sim$uncensored <- 1
+#'threshold_fixed <- -0.3
+#'sel <- dat_sim$y_uncensored < threshold_fixed
+#'dat_sim$y[sel] <- NA  
+#'dat_sim$uncensored[sel] <- 0  
+#'dat_sim$threshold <- threshold_fixed
+#'
+#'# Plot
+#'lc_plot(dat_sim)
+#'
+#' result_nonlin <- lc_fixedsplines(dat_sim, knots = 3)
 #' 
-#' # Get best estimates and plot its regression line on top of the plot  
-#' a <- result$summary$quantiles["intercept", "50%"]
-#' b <- result$summary$quantiles["slope", "50%"]
-#' abline(a, b, col = "green2")
+#' # Show result
+#' lc_plot(dat_sim, results = result_nonlin)
 #' 
-#' # Example with real data
-#' # Prepare the data (including log-transformation)
-#' # We also choose to log-transform the data in this case 
-#' data_test <- lc_prepare(polybrom, 
-#'                         x = "year",
-#'                         y = "concentration", 
-#'                         censored = "LOQ_flag",
-#'                         log = TRUE)
-#'                          
-#' # Perform the analysis
-#' result <- lc_linear(subset(data_test, station == "23B"))
-#' 
-#' # MCMC summaryload_al
-#' result$summary
-#' 
-#' # Check quantiles of the parameters (not shown here; long output)
-#' # result$summary$quantiles
-#' 
-#' # Make a standard MCMC plot: the trace and the density for each estimated parameter  
-#' par(mar = c(2,4,3,1))
-#' plot(result$model)
-#' 
-#' # Plot the trace for each MCMC run  
-#' par(mfrow = c(2,2), mar = c(2,4,3,1))
-#' coda::traceplot(result$model, ask = FALSE)
+#' \dontrun{
+#' # Show summary of the posterior for each variable:
+#' result_nonlin$summary
+#' }
 #' 
 #' @export
 lc_fixedsplines <- function(data,
                             x = "x", 
-                            y = "y_uncens", 
+                            y = "y", 
                             uncensored = "uncensored",
                             threshold = "threshold",
                             knots = 9,
