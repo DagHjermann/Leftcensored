@@ -108,10 +108,10 @@ lc_fixedsplines_qi <- function(data,
   # Normalize x and y
   data_all_original <- data_all
   norm <- normalize_lm(data_all[[x]], c(data_obs[[y]], data_cen[[threshold]]))
-  data_obs[[x]] <- norm$x[data[[uncensored]] %in% 1]
-  data_obs[[y]] <- norm$y[data[[uncensored]] %in% 1]
-  data_cen[[x]] <- norm$x[data[[uncensored]] %in% 0]
-  data_cen[[threshold]] <- norm$y[data[[uncensored]] %in% 0]
+  data_obs[[x]] <- norm$x[data_all[[uncensored]] %in% 1]
+  data_obs[[y]] <- norm$y[data_all[[uncensored]] %in% 1]
+  data_cen[[x]] <- norm$x[data_all[[uncensored]] %in% 0]
+  data_cen[[threshold]] <- norm$y[data_all[[uncensored]] %in% 0]
   data_all[[x]] <- norm$x
   
   # For making predicted lines (with SE) 
@@ -195,7 +195,7 @@ model
   # Initial run, using just sigma and dic 
   model_converged <- runjags::autorun.jags(
     data = model_data,
-    monitor = c('sigma', 'dic'),     # adding 'a0' caused very slow convergece
+    monitor = c('sigma', 'dic', 'a0'),     # adding 'a0' caused very slow convergece
     model = model_code,
     n.chains = n.chains,    # Number of different starting positions
     startsample = 4000,     # Number of iterations
