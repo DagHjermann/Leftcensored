@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^Test_area$
 ^Test_script\.R$
+^Test_script2\.R$
 ^Test_script_for_job\.R$
 ^Test_script agriCens\.R$
 ^starchGrainU\.rda$
