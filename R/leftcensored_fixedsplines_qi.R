@@ -76,7 +76,7 @@
 #' @export
 lc_fixedsplines_qi <- function(data,
                             x = "x", 
-                            y = "y_uncens", 
+                            y = "y", 
                             uncensored = "uncensored",
                             threshold = "threshold",
                             knots = 9,
