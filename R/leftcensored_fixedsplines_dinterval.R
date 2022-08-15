@@ -37,44 +37,8 @@
 #' It is an MCMC object, which has methods for functions such as plot (see ?mcmc). If you have some knowledge of the MCMC technique for     
 #' state-space models, this can be used for diagnostic plots of the model. See examples.
 #'   
-#' @examples
-#' # Simulate data and estimate regression
-#' sim <- lc_simulate(n = 30)
-#' result <- lc_linear(sim$data)
 #' 
-#' # Get best estimates and plot its regression line on top of the plot  
-#' a <- result$summary$quantiles["intercept", "50%"]
-#' b <- result$summary$quantiles["slope", "50%"]
-#' abline(a, b, col = "green2")
-#' 
-#' # Example with real data
-#' # Prepare the data (including log-transformation)
-#' # We also choose to log-transform the data in this case 
-#' data_test <- lc_prepare(polybrom, 
-#'                         x = "year",
-#'                         y = "concentration", 
-#'                         censored = "LOQ_flag",
-#'                         log = TRUE)
-#'                          
-#' # Perform the analysis
-#' result <- lc_linear(subset(data_test, station == "23B"))
-#' 
-#' # MCMC summaryload_al
-#' result$summary
-#' 
-#' # Check quantiles of the parameters (not shown here; long output)
-#' # result$summary$quantiles
-#' 
-#' # Make a standard MCMC plot: the trace and the density for each estimated parameter  
-#' par(mar = c(2,4,3,1))
-#' plot(result$model)
-#' 
-#' # Plot the trace for each MCMC run  
-#' par(mfrow = c(2,2), mar = c(2,4,3,1))
-#' coda::traceplot(result$model, ask = FALSE)
-#' 
-#' @export
-lc_fixedsplines <- function(data,
+lc_fixedsplines_dinterval <- function(data,
                             x = "x", 
                             y = "y_uncens", 
                             uncensored = "uncensored",

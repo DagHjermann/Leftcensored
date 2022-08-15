@@ -37,7 +37,7 @@
 #' # Simulate data and estimate regression
 #' set.seed(11)
 #' sim <- lc_simulate(n = 30)
-#' result <- lc_linear(sim$data)
+#' result <- lc_linear_dinterval(sim$data)
 #' 
 #' # Get best estimates and plot its regression line on top of the plot  
 #' a <- result$intercept["50%"]
@@ -57,8 +57,7 @@
 #' par(mfrow = c(2,2), mar = c(2,4,3,1))
 #' coda::traceplot(result$model, ask = FALSE)
 #' 
-#' @export
-lc_linear <- function(data,
+lc_linear_dinterval <- function(data,
                       x = "x", 
                       y = "y", 
                       uncensored = "uncensored",
