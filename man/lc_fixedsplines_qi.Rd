@@ -7,7 +7,7 @@
 lc_fixedsplines_qi(
   data,
   x = "x",
-  y = "y_uncens",
+  y = "y",
   uncensored = "uncensored",
   threshold = "threshold",
   knots = 9,
@@ -15,7 +15,8 @@ lc_fixedsplines_qi(
   n.chains = 4,
   n.iter = 1000,
   n.burnin = 1000,
-  n.thin = 1
+  n.thin = 1,
+  model_parameters_for_convergence = c("sigma", "dic")
 )
 }
 \arguments{
