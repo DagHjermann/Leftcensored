@@ -617,6 +617,9 @@ data_test_prep <- lc_prepare(data_test_orig,
                         censored = "LOQ_flag",
                         log = TRUE)
 
+debugonce(lc_plot)
+lc_plot(data_test_prep)
+
 # . analysis using lc_linear ----  
 result <- lc_linear(data_test_prep, plot_input = TRUE, plot_norm = TRUE)  
 
@@ -846,14 +849,12 @@ dat_sim$y[sel] <- NA
 dat_sim$uncensored[sel] <- 0  
 dat_sim$threshold <- threshold_fixed
 
-ggplot(dat_sim, aes(x, y)) +
-  geom_point() +
-  geom_point(data = subset(dat_sim, uncensored == 0), aes(y = threshold), shape = 6) +
-  geom_line(aes(y = y_true), color = "blue")
+# Plot
+lc_plot(dat_sim)
 
 
 #
-# . test DIC values ----
+# . fit models and test DIC values ----
 #
 # Does work as expected
 #
@@ -872,63 +873,24 @@ dic_values <- data.frame(
 barplot(dic_values$DIC, names.arg = dic_values$Model)
 
 #
-# Plot data, true model (if existing), and fitted line of model(s)
+# . plot data ---- 
 #
-lc_plot <- function(data,
-                    x = "x", 
-                    y = "y", 
-                    uncensored = "uncensored",
-                    threshold = "threshold",
-                    results = NULL,
-                    y_true = NULL){
-  data$x <- data[[x]]
-  data$y <- data[[y]]
-  data$uncensored <- data[[uncensored]]
-  data$threshold <- data[[threshold]]
-  gg <- ggplot(data, aes(x, y))
-  if (!is.null(results)){
-    for (i in 1:length(results)){
-      new_result <- results[[i]]$plot_data
-      new_result$Model <- names(results)[i]
-      if (i == 1){
-        analysis_result <- new_result
-      } else {
-        analysis_result <- bind_rows(analysis_result, new_result)
-      }
-    }
-    gg <- gg +
-      geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, fill = Model), alpha = 0.5) +
-      geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, color = Model))
-  }
-  gg <- gg +
-    geom_point() +
-    geom_point(data = subset(dat_sim, uncensored == 0), aes(y = threshold), shape = 6)
-  if (!is.null(y_true)){
-    data$y_true <- data[[y_true]]
-    gg <- gg +
-      geom_line(aes(y = y_true), color = "brown")
-  }
-  gg
-}
+#   true model (if existing), and fitted line of model(s)
+#
 
-lc_plot(dat_sim, y_true = "y_true", results = list(Nonlin_3knots = result_3knots_qi))
+lc_plot(dat_sim, y_true = "y_true", results = result_3knots_qi)
+lc_plot(dat_sim, y_true = "y_true", results = list(result_3knots_qi))
 lc_plot(dat_sim, 
         y_true = "y_true", 
         results = list(Linear = result_linear_qi,
-                       Nonlin_2knots = result_2knots_qi,
+                       Nonin_2knots = result_2knots_qi,
                        Nonlin_3knots = result_3knots_qi,
                        Nonlin_4knots = result_4knots_qi,
                        Nonlin_5knots = result_5knots_qi))
-lc_plot(dat_sim)
-lc_plot(dat_sim, y_true = "y_true")
-
-lines(y ~ x, data = jagsresult$plot_data, col = "red")
-lines(y_lo ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")
-lines(y_hi ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")  
 
 
 #
-# Test truncation ---- 
+# APPENDIX? - Test truncation ---- 
 #
 # Based on
 # http://www.johnmyleswhite.com/notebook/2010/08/20/using-jags-in-r-with-the-rjags-package/
