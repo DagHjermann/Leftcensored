@@ -19,7 +19,8 @@ lc_linear(
   sd_y = NULL,
   plot_input = FALSE,
   plot_norm = FALSE,
-  detailed = FALSE
+  detailed = FALSE,
+  type = "Qi"
 )
 }
 \arguments{
@@ -49,6 +50,10 @@ no decreasing or increasing trend in the traceplot). One can also use R2jags::tr
 depending on their diferent starting point. If they do, n.burnin should be increased.}
 
 \item{n.thin}{The number of MCMC iterations that are kept for statistics.}
+
+\item{type}{Type of Jags model formulation used. The default (type = 'Qi') uses the method of Qi et al. (2022). The alternative is
+type = 'dinterval', which uses the method used in the standard JAGS documentation. The advantage of the method of Qi et al. is that
+it returns the deviance information criterion (DIC).}
 }
 \value{
 The function returns a list with two parts: \code{summary} and \code{model}. \code{summary} shows a summary of the result, i.e., estimates
@@ -89,6 +94,12 @@ plot(result$model)
 par(mfrow = c(2,2), mar = c(2,4,3,1))
 coda::traceplot(result$model, ask = FALSE)
 
+}
+\references{
+Qi X, Zhou S and Plummer M. 2022. On Bayesian modeling of censored data in JAGS. BMC Bioinformatics 23: 102
+(doi: 10.1186/s12859-021-04496-8). https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8944154/
+
+Plummer N (2017). JAGS Version 4.3.0 user manual. https://sourceforge.net/projects/mcmc-jags/files/
 }
 \keyword{Statistics,}
 \keyword{censored}
