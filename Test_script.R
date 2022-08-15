@@ -814,6 +814,120 @@ plot(2:6, dic)
 
 
 #
+# Test Qi version with simulated data ----   
+#
+# Make strongly non-linear data
+#
+
+X <- seq(from=-1, to=1, by=.025) # generating inputs
+B <- t(splines::bs(X, knots=seq(-1,1,1), degree=3, intercept = TRUE)) # creating the B-splines
+num_data <- length(X); num_basis <- nrow(B)
+a0 <- 0.2 # intercept
+
+set.seed(991)
+# num_basis <- 6
+a <- rnorm(num_basis, 0, 1) # coefficients of B-splines
+n_param <- length(a)
+
+Y_true <- as.vector(a0*X + a%*%B) # generating the output
+Y <- Y_true + rnorm(length(X),0,.1) # adding noise
+
+dat_sim <- data.frame(x = X, y_uncensored = Y, y_true = Y_true)
+# ggplot(dat_sim, aes(x, y_uncensored)) +
+#   geom_point() +
+#   geom_line(aes(y = y_true), color = "blue")
+
+# Add censoring 
+dat_sim$y <- dat_sim$y_uncensored
+dat_sim$uncensored <- 1
+threshold_fixed <- -0.3
+sel <- dat_sim$y_uncensored < threshold_fixed
+dat_sim$y[sel] <- NA  
+dat_sim$uncensored[sel] <- 0  
+dat_sim$threshold <- threshold_fixed
+
+ggplot(dat_sim, aes(x, y)) +
+  geom_point() +
+  geom_point(data = subset(dat_sim, uncensored == 0), aes(y = threshold), shape = 6) +
+  geom_line(aes(y = y_true), color = "blue")
+
+
+#
+# . test DIC values ----
+#
+# Does work as expected
+#
+# debugonce(lc_fixedsplines_qi)
+result_linear_qi <- lc_linear_qi(dat_sim)
+result_2knots_qi <- lc_fixedsplines_qi(dat_sim, knots = 2)
+result_3knots_qi <- lc_fixedsplines_qi(dat_sim, knots = 3)
+result_4knots_qi <- lc_fixedsplines_qi(dat_sim, knots = 4)
+result_5knots_qi <- lc_fixedsplines_qi(dat_sim, knots = 5)
+
+dic_values <- data.frame(
+  Model = c("Linear", "2 knots", "3 knots", "4 knots", "5 knots"),
+  DIC <- c(result_linear_qi$dic, result_2knots_qi$dic, result_3knots_qi$dic,
+           result_4knots_qi$dic, result_5knots_qi$dic)
+)
+barplot(dic_values$DIC, names.arg = dic_values$Model)
+
+#
+# Plot data, true model (if existing), and fitted line of model(s)
+#
+lc_plot <- function(data,
+                    x = "x", 
+                    y = "y", 
+                    uncensored = "uncensored",
+                    threshold = "threshold",
+                    results = NULL,
+                    y_true = NULL){
+  data$x <- data[[x]]
+  data$y <- data[[y]]
+  data$uncensored <- data[[uncensored]]
+  data$threshold <- data[[threshold]]
+  gg <- ggplot(data, aes(x, y))
+  if (!is.null(results)){
+    for (i in 1:length(results)){
+      new_result <- results[[i]]$plot_data
+      new_result$Model <- names(results)[i]
+      if (i == 1){
+        analysis_result <- new_result
+      } else {
+        analysis_result <- bind_rows(analysis_result, new_result)
+      }
+    }
+    gg <- gg +
+      geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, fill = Model), alpha = 0.5) +
+      geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, color = Model))
+  }
+  gg <- gg +
+    geom_point() +
+    geom_point(data = subset(dat_sim, uncensored == 0), aes(y = threshold), shape = 6)
+  if (!is.null(y_true)){
+    data$y_true <- data[[y_true]]
+    gg <- gg +
+      geom_line(aes(y = y_true), color = "brown")
+  }
+  gg
+}
+
+lc_plot(dat_sim, y_true = "y_true", results = list(Nonlin_3knots = result_3knots_qi))
+lc_plot(dat_sim, 
+        y_true = "y_true", 
+        results = list(Linear = result_linear_qi,
+                       Nonlin_2knots = result_2knots_qi,
+                       Nonlin_3knots = result_3knots_qi,
+                       Nonlin_4knots = result_4knots_qi,
+                       Nonlin_5knots = result_5knots_qi))
+lc_plot(dat_sim)
+lc_plot(dat_sim, y_true = "y_true")
+
+lines(y ~ x, data = jagsresult$plot_data, col = "red")
+lines(y_lo ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")
+lines(y_hi ~ x, data = jagsresult$plot_data, lty = "dashed", col = "red")  
+
+
+#
 # Test truncation ---- 
 #
 # Based on
