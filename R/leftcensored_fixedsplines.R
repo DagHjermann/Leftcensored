@@ -26,8 +26,17 @@
 #' no decreasing or increasing trend in the traceplot). One can also use R2jags::traceplot to assess whether the chains behave differently, 
 #' depending on their diferent starting point. If they do, n.burnin should be increased.
 #' @param n.thin The number of MCMC iterations that are kept for statistics.
+#' @param type Type of Jags model formulation used. The default (type = 'Qi') uses the method of Qi et al. (2022). The alternative is 
+#' type = 'dinterval', which uses the method used in the standard JAGS documentation. The advantage of the method of Qi et al. is that
+#' it returns the deviance information criterion (DIC).   
 #' 
 #' @keywords Statistics, regression, censored
+#' 
+#' @references 
+#' Qi X, Zhou S and Plummer M. 2022. On Bayesian modeling of censored data in JAGS. BMC Bioinformatics 23: 102
+#' (doi: 10.1186/s12859-021-04496-8). https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8944154/  
+#' 
+#' Plummer N (2017). JAGS Version 4.3.0 user manual. https://sourceforge.net/projects/mcmc-jags/files/  
 #' 
 #' @return The function returns a list with two parts: \code{summary} and \code{model}. \code{summary} shows a summary of the result, i.e., estimates
 #' of the parameters of the linear regression: intercept, slope and sigma (the estimated standard deviation of the data around the regression line).
@@ -84,7 +93,8 @@ lc_fixedsplines <- function(data,
                             n.chains = 4, 
                             n.iter = 5000, 
                             n.burnin = 1000, 
-                            n.thin = 2){
+                            n.thin = 2,
+                            type = "Qi"){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -93,109 +103,20 @@ lc_fixedsplines <- function(data,
   # NOTE: CHECK THIS for multi-level statistical models:
   # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
   
-  # Set all censored data to NA (if not already done)
-  # Important! Otherwise all LOQ stuff is ignored
-  data[[y]][!data[[uncensored]] == 1] <- NA
-  
-  # All the values of 'uncensored' that are not 1, will be set to 
-  data[[uncensored]][!data[[uncensored]] == 1] <- 0
-  
-  # For making predicted lines (with SE) 
-  xmin <- min(data[[x]], na.rm = TRUE)
-  xmax <- max(data[[x]], na.rm = TRUE)
-  x.out <- seq(xmin, xmax, length = resolution)
-  
-  # Create knots and splinen basis functions  
-  if (length(knots) == 1)
-    knots <- seq(xmin, xmax, length = knots)
-
-  # Generate basis splines at the observed x values, using splines::bs()  
-  B <- t(splines::bs(data[[x]], knots = knots, degree=3, intercept = TRUE)) 
-  B.out <- t(splines::bs(x.out, knots = knots, degree=3, intercept = TRUE)) 
-  
-  # Generate basis splines for describing predicted spline line   
-  # x <- seq(from = xmin, to = xmax, length = resolution) # generating inputs
-  # B <- t(splines::bs(x, knots = knots, degree=3, intercept = TRUE)) 
-  
-  # Jags code to fit the model to the simulated data
-
-  model_code = '
-model
-{
-  y.hat <- a0*x + a %*% B ## expected response  
-  y.hat.out <- a0*x.out + a %*% B.out ## expected response  
-  
-  # Likelihood
-  for (i in 1:n){
-    uncensored[i] ~ dinterval(y[i], threshold[i]) 
-    y[i] ~ dnorm(y.hat[i], tau)
-  }
-  sigma <- 1/tau         ## convert tau to standard GLM scale
-  tau ~ dgamma(.05,.005) ## precision parameter prior 
-  # Linear effect  
-  a0 ~ dnorm(0, lambda[1])
-  
-  # Specify priors for spline terms
-  for (k in 1:K) {
-    a[k] ~ dnorm(0, lambda[2])
+  if (is.numeric(grep(type, c("Qi", "dbern", "Bernoulli")))){
+    result <- lc_fixedsplines_qi(
+      data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+      knots=knots,
+      resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
+      n.thin=n.thin)
+  } else {
+    result <- lc_fixedsplines_dinterval(
+      data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+      knots=knots,
+      resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
+      n.thin=n.thin)
   }
   
-  ## smoothing parameter priors   
-  for (m in 1:2) {
-    lambda[m] ~ dgamma(.05,.005)
-    rho[m] <- log(lambda[m])
-  }
-}
-'
-  ### Set up data and parameters
-  # Set up the data
-  model_data <- list('n' = nrow(data), 
-                    'y' = data[[y]], 
-                    'uncensored' = data[[uncensored]],
-                    'threshold' = data[[threshold]],
-                    'x' = data[[x]],
-                    'x.out' = x.out,
-                    'B' = B,
-                    'B.out' = B.out,
-                    'K' = dim(B)[1])
-  # Choose the parameters to watch
-  model_parameters <-  c('a0', 'a', 'sigma','tau','y.hat.out')
-  
-  ### Run model
-  # Run the model
-  model_first_result <- R2jags::jags(data = model_data,
-                   parameters.to.save = model_parameters,
-                   model.file=textConnection(model_code),
-                   n.chains=n.chains,   # Number of different starting positions
-                   n.iter = n.iter,     # Number of iterations
-                   n.burnin = n.burnin, # Number of iterations to remove at start
-                   n.thin = n.thin)     # Amount of thinning
-  
-  # Auto update until it converges
-  model_result <- R2jags::autojags(model_first_result)
-  
-  # model_result
-  model_mcmc <- coda::as.mcmc(model_result)
-  
-  summary <- summary(model_mcmc)
-  
-  # summary(model_mcmc) %>% str()
-  
-  # Get predicted line 
-  quants <- summary$quantiles
-  length.out <- length(x.out)
-  pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
-  plot_data <- data.frame(
-    x = x.out, 
-    y = quants[pick_rownames,"50%"],
-    y_lo = quants[pick_rownames,"2.5%"],
-    y_hi = quants[pick_rownames,"97.5%"]
-  )
-  
-  list(summary = summary,
-       plot_data = plot_data,
-       model = model_mcmc,
-       model_from_jags = model_result)
-  
+  result
   
 }
