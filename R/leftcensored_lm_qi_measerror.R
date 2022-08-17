@@ -58,11 +58,12 @@
 #' coda::traceplot(result$model, ask = FALSE)
 #' 
 #' @export
-lc_linear_qi <- function(data,
+lc_linear_qi_measerror <- function(data,
                       x = "x", 
                       y = "y", 
                       uncensored = "uncensored",
                       threshold = "threshold",
+                      measurement_error = 0.1,
                       resolution = 50,
                       n.chains = 4, 
                       n.iter = 5000, 
@@ -106,12 +107,15 @@ model
 {
   # Uncensored observations 
   for (o in 1:O) {
-    y.uncens[o] ~ dnorm(intercept + slope * x[o], sigma^-2)
+    y.uncens.error[o] ~ dnorm(y.uncens[o], error_logscale^-2) 
+    y.uncens[o] ~ dnorm(y.expect[o], sigma^-2)
+    y.expect[o] <- intercept + slope * x[o]
   }
   # Censored observations 
   for (c in 1:C) {
     Z1[c] ~ dbern(p[c])
-    p[c] <- pnorm(cut[c], intercept + slope * x[O+c], sigma^-2)
+    p[c] <- pnorm(cut[c], y.expect[c], sigma^-2)
+    y.expect[c] <- intercept + slope * x[O+c]
   }
   for (i in 1:resolution) {
     y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
@@ -120,7 +124,7 @@ model
   for (i in 1:resolution){
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
-
+  
   # Priors
   intercept ~ dnorm(0, 100^-2)
   slope ~ dnorm(0, 100^-2)
@@ -154,7 +158,7 @@ model
   data_all <- rbind(data_obs, data_cen)
 
   model_data <- list(x = norm_x(data[[x]]),
-                     y.uncens = norm_y(data_obs[[y]]),
+                     y.uncens.error = norm_y(data_obs[[y]]),
                      O = nrow(data_obs),
                      Z1 = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
                      cut = norm_y(data_cen[[threshold]]),
@@ -162,7 +166,8 @@ model
                     x.out = norm_x(x.out),
                     resolution = resolution,
                     mean_y = mean_y,
-                    sd_y = sd_y)
+                    sd_y = sd_y,
+                    error_logscale = (exp(measurement_error) - 1)/sd_y)  # divide by sd_y becuse of normalizaton
 
   if (plot_norm){
     plot(model_data$x, model_data$y.uncens, ylim = range(model_data$y.uncens, model_data$threshold, na.rm = TRUE))
