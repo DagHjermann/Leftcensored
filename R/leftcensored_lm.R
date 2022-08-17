@@ -82,7 +82,8 @@ lc_linear <- function(data,
                       plot_input = FALSE,
                       plot_norm = FALSE,
                       detailed = FALSE,
-                      type = "Qi"){
+                      type = "Qi",
+                      measurement_error = NULL){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -91,11 +92,19 @@ lc_linear <- function(data,
   # NOTE: CHECK THIS for multi-level statistical models:
   # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
   
-  if (is.numeric(grep(type, c("Qi", "dbern", "Bernoulli")))){
+  if (type == "Qi" & is.null(measurement_error)){
     result <- lc_linear_qi(data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
                            resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
                            n.thin=n.thin, mean_y=mean_y, sd_y=sd_y,
                            plot_input=plot_input, plot_norm=plot_norm, detailed = FALSE)
+  } else if (type == "Qi" & !is.null(measurement_error)){
+    result <- lc_linear_qi_measerror(
+                           data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+                           resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
+                           n.thin=n.thin, mean_y=mean_y, sd_y=sd_y,
+                           plot_input=plot_input, plot_norm=plot_norm, detailed = FALSE,
+                           measurement_error = measurement_error)
+    
   } else {
     result <- lc_linear_dinterval(data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
                                   resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
