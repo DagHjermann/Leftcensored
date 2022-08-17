@@ -72,7 +72,8 @@ lc_linear_qi <- function(data,
                       sd_y = NULL,
                       plot_input = FALSE,
                       plot_norm = FALSE,
-                      detailed = FALSE){
+                      detailed = FALSE,
+                      model_parameters_for_convergence = c("intercept", "slope")){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -214,31 +215,35 @@ model
   # n.burnin           - specified in coda.samples 
   # n.thin             - specified in coda.samples
   
-  # Inital run
-  model_run <- rjags::jags.model(
-    data = model_data,     
-    inits = jags.inits,   #  (note argument name)
-    file = textConnection(model_code),  #  (note argument name)
-    n.chains=n.chains,   # Number of different starting positions
-    n.adapt = n.iter     # Number of iterations (note argument name)
-  )
+  # Choose the parameters to watch
+  model_parameters <-  c('intercept', 'slope', 'sigma', 'y.hat.out')
   
-  # Updating model
-  update(model_run, 30000)   # may also use R2jags::autojags ?
+  ### Run model
+  # Initial run, using just sigma and dic 
+  model_converged <- runjags::autorun.jags(
+    data = model_data,
+    monitor = model_parameters_for_convergence,     
+    inits = jags.inits,
+    model = model_code,
+    n.chains = n.chains,    # Number of different starting positions
+    startsample = 4000,     # Number of iterations
+    startburnin = n.burnin, # Number of iterations to remove at start
+    thin = n.thin)          # Amount of thinning
   
-  # Sample from the last 30000
-  model_samples <- rjags::coda.samples(model=model_run, 
-                                variable.names = model_parameters, 
-                                n.iter=30000, 
-                                thin=3)
-
-  # Summarize samples
-  summary <- summary(model_samples)
+  # Add all model parameters and get samples for them
+  model_result <- runjags::extend.jags(model_converged, 
+                                       add.monitor = model_parameters,
+                                       sample = n.iter)
+  
+  # model_result
+  model_mcmc <- coda::as.mcmc(model_result)
+  
+  summary <- summary(model_mcmc)
   
   #
   # DIC
   #
-  dic.pd <- rjags::dic.samples(model=model_run, n.iter=30000, type="pD"); dic.pd
+  dic.pd <- rjags::dic.samples(model = runjags::as.jags(model_result), n.iter=1000, type="pD")
   
   # Not used now:
   # dic.popt <- dic.samples(model=model_run, n.iter=30000, type="popt"); dic.popt
@@ -252,7 +257,7 @@ model
   
   # Calculate DIC
   dic <- sum(deviance) + sum(pd)
-  
+
   #
   # Get predicted line 
   #
@@ -286,19 +291,18 @@ model
   #   y = [a'*sd_y - b'*sd_y*mean_x + mean_y] + [b*sd_y]*x  (5)
   # Where the two parentheses are the back-transformed intercept and slope, respectively
   #
-  
-  list(summary = summary,             # summary of the mcmc.list object, contains quantiles
+
+  list(summary = summary,
        plot_data = plot_data,
+       model = model_mcmc,
+       model_from_jags = model_result,
        intercept = intercept,
        slope = slope,
-       model_data = model_data,       # jags object
-       model_samples = model_samples, # mcmc.list object
-       model = model_run,
        mean_y = mean_y,
        sd_y = sd_y,
        norm_y = norm_y,
        dic_all = dic.pd,
-       dic = dic)
+       dic = dic)  
   
 }
 
