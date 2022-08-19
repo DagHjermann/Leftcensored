@@ -88,6 +88,7 @@ lc_plot <- function(data,
         analysis_result <- bind_rows(analysis_result, new_result)
       }
     }
+    analysis_result$Model <- factor(analysis_result$Model, levels = names(results))
     gg <- gg +
       geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, fill = Model), alpha = 0.5) +
       geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, color = Model))
