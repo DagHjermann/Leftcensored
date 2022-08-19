@@ -14,6 +14,9 @@
 #' @param censored_value Value of LOQ flag variable for values under LOQ, by default "<" 
 #' @param log Value (TRUE/FALSE) for whether to log-transform concentrations or not (TRUE by default)
 #' @param const Constant to add before log-transformation (to avoid problems with log of zero)
+#' @param keep_original_columns If FALSE (the default), the columns given as x, y and censored will be renamed in the final data 
+#' (to "x", "y", and "Flag"); and if log also is TRUE, the y values will also change. If TRUE, new columns named 
+#' "x", "y", and "Flag" will be added to the data.  
 #' 
 #' 
 #' @import dplyr
@@ -52,19 +55,31 @@ lc_prepare <- function(data,
                        censored = "LOQ_flag",
                        censored_value = "<",
                        log = FALSE,
-                       const = 0){
+                       const = 0,
+                       keep_original_columns = FALSE){
   # Change names in data set
   varnames_user <- c(x, y, censored)
   varnames_new <- c("x", "y", "Flag")
+
+  # Rename x, y and Flag columns if keep_original_columns = FALSE
+  # Add new x, y and Flag columns if keep_original_columns = TRUE
   for (i in 1:3){
     sel <- names(data) %in% varnames_user[i]
     if (sum(sel)==1){
-      names(data)[sel] <- varnames_new[i]
+      if (keep_original_columns){
+        data[[varnames_new[i]]] <- data[[varnames_user[i]]]
+      } else {
+        names(data)[sel] <- varnames_new[i]
+      }
     } else {
       stop(paste("No unique variable named", sQuote(varnames_user[i]), "was found in the data set"))
     } 
   }
+
+  # Remove rows where y lack data
   result <- subset(data, !is.na(y))
+  
+  # Add new columns
   result$threshold <- as.numeric(NA)
   result$uncensored <- as.numeric(NA)
 

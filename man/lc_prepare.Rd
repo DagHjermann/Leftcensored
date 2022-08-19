@@ -11,7 +11,8 @@ lc_prepare(
   censored = "LOQ_flag",
   censored_value = "<",
   log = FALSE,
-  const = 0
+  const = 0,
+  keep_original_columns = FALSE
 )
 }
 \arguments{
@@ -28,6 +29,10 @@ lc_prepare(
 \item{log}{Value (TRUE/FALSE) for whether to log-transform concentrations or not (TRUE by default)}
 
 \item{const}{Constant to add before log-transformation (to avoid problems with log of zero)}
+
+\item{keep_original_columns}{If FALSE (the default), the columns given as x, y and censored will be renamed in the final data
+(to "x", "y", and "Flag"); and if log also is TRUE, the y values will also change. If TRUE, new columns named
+"x", "y", and "Flag" will be added to the data.}
 }
 \description{
 This function is meant for analysis of chemical concentration data as function of year. These data are given as
