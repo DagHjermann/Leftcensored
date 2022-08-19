@@ -48,13 +48,17 @@ limit of detection or limit of quantification).It may be constant, or it may var
 \item{n.burnin}{The number of iterations to remove at start of each MCMC chain, before results are collected for statistics. The default is 1000.
 If n.burnin is too small, plots of the trace (see examples) will show whether the chains are homogeneous along the chain (there should be from
 no decreasing or increasing trend in the traceplot). One can also use R2jags::traceplot to assess whether the chains behave differently,
-depending on their diferent starting point. If they do, n.burnin should be increased.}
+depending on their different starting point. If they do, n.burnin should be increased.}
 
 \item{n.thin}{The number of MCMC iterations that are kept for statistics.}
 
 \item{type}{Type of Jags model formulation used. The default (type = 'Qi') uses the method of Qi et al. (2022). The alternative is
 type = 'dinterval', which uses the method used in the standard JAGS documentation. The advantage of the method of Qi et al. is that
 it returns the deviance information criterion (DIC).}
+
+\item{measurement_error}{(optional) Variable name for a variable giving the standard value of the measurement error.
+If given, this is taken into account, increasing the quantile range (i.e. the confidence interval) of the estimated
+intercept and slope.}
 }
 \value{
 The function returns a list with two parts: \code{summary} and \code{model}. \code{summary} shows a summary of the result, i.e., estimates
@@ -72,12 +76,19 @@ actual value is somewhere below LOQ. The variables need to have particular names
 prepare_data() to make your data ready for this function.
 }
 \examples{
-# Simulate data and estimate regression
+
+#
+# 1. No measurement error
+#
+
+# Simulate data
 set.seed(11)
-sim <- lc_simulate(n = 30)
+sim <- lc_simulate(n = 30)     # also plots the data
+
+# Estimate regression
 result <- lc_linear(sim$data)
 
-# Get best estimates and plot its regression line on top of the plot  
+# Get best estimates and plot its regression line on top of the plot of the data  
 a <- result$intercept["50\%"]
 b <- result$slope["50\%"]
 abline(a, b, col = "green2")
@@ -87,13 +98,36 @@ lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green2")
 # Check quantiles of the parameters
 result$summary$quantiles
 
-# Make a standard MCMC plot: the trace and the density for each estimated parameter  
-par(mar = c(2,4,3,1))
-plot(result$model)
+# Make a standard MCMC plot: the trace and the density for each estimated parameter (long output)
+# par(mar = c(2,4,3,1))
+# plot(result$model)
 
-# Plot the trace for each MCMC run  
-par(mfrow = c(2,2), mar = c(2,4,3,1))
-coda::traceplot(result$model, ask = FALSE)
+# Plot the trace for each MCMC run (long output)  
+# par(mfrow = c(2,2), mar = c(2,4,3,1))
+# coda::traceplot(result$model, ask = FALSE)
+
+#
+# 2. With measurement error
+#
+
+# Simulate data
+set.seed(11)
+sim <- lc_simulate(n = 30)     # also plots the data
+
+# Add SD of the measurement error
+# (For simplicity, we use the same SD for all rows, bt it may vary for case to case,
+# for instance if the error is given as a percentage of the observed value)
+sim$data$meas_error <- 5
+
+# Estimate regression
+result_me <- lc_linear(sim$data)
+
+# Get best estimates and plot the regression line  
+a <- result_me$intercept["50\%"]
+b <- result_me$slope["50\%"]
+abline(a, b, col = "green2")
+lines(y_lo ~ x, data = result_me$plot_data, lty = "dashed", col = "green2")
+lines(y_hi ~ x, data = result_me$plot_data, lty = "dashed", col = "green2")
 
 }
 \references{
