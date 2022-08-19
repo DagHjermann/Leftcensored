@@ -20,7 +20,8 @@ lc_linear(
   plot_input = FALSE,
   plot_norm = FALSE,
   detailed = FALSE,
-  type = "Qi"
+  type = "Qi",
+  measurement_error = NULL
 )
 }
 \arguments{

@@ -19,7 +19,8 @@ lc_linear_qi(
   sd_y = NULL,
   plot_input = FALSE,
   plot_norm = FALSE,
-  detailed = FALSE
+  detailed = FALSE,
+  model_parameters_for_convergence = c("intercept", "slope")
 )
 }
 \arguments{
