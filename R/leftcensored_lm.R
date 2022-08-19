@@ -98,7 +98,7 @@ lc_linear <- function(data,
                            n.thin=n.thin, mean_y=mean_y, sd_y=sd_y,
                            plot_input=plot_input, plot_norm=plot_norm, detailed = FALSE)
   } else if (type == "Qi" & !is.null(measurement_error)){
-    result <- lc_linear_qi_measerror(
+    result <- leftcensored:::lc_linear_qi_measerror(
                            data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
                            resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
                            n.thin=n.thin, mean_y=mean_y, sd_y=sd_y,
