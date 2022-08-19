@@ -126,7 +126,7 @@ lc_linear <- function(data,
   # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
   
   if (type == "Qi" & is.null(measurement_error)){
-    result <- lc_linear_qi(data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+    result <- leftcensored:::lc_linear_qi(data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
                            resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
                            n.thin=n.thin, mean_y=mean_y, sd_y=sd_y,
                            plot_input=plot_input, plot_norm=plot_norm, detailed = FALSE)
@@ -139,7 +139,7 @@ lc_linear <- function(data,
                            measurement_error = measurement_error)
     
   } else {
-    result <- lc_linear_dinterval(data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+    result <- leftcensored:::lc_linear_dinterval(data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
                                   resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
                                   n.thin=n.thin, mean_y=mean_y, sd_y=sd_y,
                                   plot_input=plot_input, plot_norm=plot_norm, detailed = FALSE)
