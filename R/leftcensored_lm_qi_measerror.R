@@ -63,7 +63,7 @@ lc_linear_qi_measerror <- function(data,
                       y = "y", 
                       uncensored = "uncensored",
                       threshold = "threshold",
-                      measurement_error = 0.1,
+                      measurement_error = "meas_error",
                       resolution = 50,
                       n.chains = 4, 
                       n.iter = 5000, 
@@ -107,7 +107,7 @@ model
 {
   # Uncensored observations 
   for (o in 1:O) {
-    y.uncens.error[o] ~ dnorm(y.uncens[o], error_logscale^-2) 
+    y.uncens.error[o] ~ dnorm(y.uncens[o], meas_error[o]^-2) 
     y.uncens[o] ~ dnorm(y.expect[o], sigma^-2)
     y.expect[o] <- intercept + slope * x[o]
   }
@@ -159,15 +159,15 @@ model
 
   model_data <- list(x = norm_x(data[[x]]),
                      y.uncens.error = norm_y(data_obs[[y]]),
+                     meas_error = data_obs[[measurement_error]]/sd_y,    # normalizaton for SD = dividing by sd_y                     
                      O = nrow(data_obs),
                      Z1 = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
                      cut = norm_y(data_cen[[threshold]]),
                      C = nrow(data_cen),
-                    x.out = norm_x(x.out),
-                    resolution = resolution,
-                    mean_y = mean_y,
-                    sd_y = sd_y,
-                    error_logscale = (exp(measurement_error) - 1)/sd_y)  # divide by sd_y becuse of normalizaton
+                     x.out = norm_x(x.out),
+                     resolution = resolution,
+                     mean_y = mean_y,
+                     sd_y = sd_y)
 
   if (plot_norm){
     plot(model_data$x, model_data$y.uncens, ylim = range(model_data$y.uncens, model_data$threshold, na.rm = TRUE))
