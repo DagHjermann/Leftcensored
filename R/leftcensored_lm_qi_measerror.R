@@ -15,7 +15,9 @@ lc_linear_qi_measerror <- function(data,
                       plot_input = FALSE,
                       plot_norm = FALSE,
                       detailed = FALSE,
-                      model_parameters_for_convergence = c("intercept", "slope")){
+                      model_parameters_for_convergence = c("intercept", "slope"),
+                      keep_model = FALSE,
+                      keep_model_from_jags = FALSE){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -238,17 +240,23 @@ model
   # Where the two parentheses are the back-transformed intercept and slope, respectively
   #
 
-  list(summary = summary,
+  result <- list(summary = summary,
        plot_data = plot_data,
-       model = model_mcmc,
-       model_from_jags = model_result,
        intercept = intercept,
        slope = slope,
        mean_y = mean_y,
        sd_y = sd_y,
        norm_y = norm_y,
        dic_all = dic.pd,
-       dic = dic)  
+       dic = dic,
+       model_data = model_data)  
+  
+  if (keep_model)
+    result = append(result, list(model = model_mcmc))
+  if (keep_model_from_jags)
+    result = append(result, list(model_from_jags = model_result))
+  
+  result
   
 }
 
