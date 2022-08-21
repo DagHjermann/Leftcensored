@@ -15,7 +15,7 @@ lc_linear_qi_measerror <- function(data,
                       plot_input = FALSE,
                       plot_norm = FALSE,
                       detailed = FALSE,
-                      model_parameters_for_convergence = c("intercept", "slope"),
+                      model_parameters_for_convergence = c("intercept", "slope", "sigma"),
                       keep_model = FALSE,
                       keep_model_from_jags = FALSE){
   
