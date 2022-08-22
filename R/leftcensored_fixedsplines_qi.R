@@ -449,3 +449,194 @@ model
        dic = dic)  
   
 }
+
+
+# 
+lc_fixedsplines_qi_measerror <- function(data,
+                                         x = "x", 
+                                         y = "y", 
+                                         uncensored = "uncensored",
+                                         threshold = "threshold",
+                                         measurement_error = "meas_error",
+                                         knots = 9,
+                                         resolution = 50,
+                                         n.chains = 4, 
+                                         n.iter = 1000, 
+                                         n.burnin = 1000, 
+                                         n.thin = 1,
+                                         model_parameters_for_convergence =  c('sigma', 'dic')
+){
+  
+  # Censoring vs truncation:
+  # https://stats.stackexchange.com/a/144047/13380 
+  # Also see here for an alternative way to set up the model:
+  # https://stats.stackexchange.com/questions/6870/censoring-truncation-in-jags
+  # NOTE: CHECK THIS for multi-level statistical models:
+  # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
+  
+  # Set all censored data to NA (if not already done)
+  # Important! Otherwise all LOQ stuff is ignored
+  data[[y]][!data[[uncensored]] == 1] <- NA
+  
+  # All the values of 'uncensored' that are not 1, will be set to 
+  data[[uncensored]][!data[[uncensored]] == 1] <- 0
+  
+  # Split the data into uncensored and censored parts
+  data_obs <- data[data[[uncensored]] %in% 1,]
+  data_cen <- data[data[[uncensored]] %in% 0,]
+  data_all <- rbind(data_obs, data_cen)
+  
+  # Normalize x and y
+  data_all_original <- data_all
+  norm <- normalize_lm(data_all[[x]], c(data_obs[[y]], data_cen[[threshold]]))
+  data_obs[[x]] <- norm$x[data_all[[uncensored]] %in% 1]
+  data_obs[[y]] <- norm$y[data_all[[uncensored]] %in% 1]
+  data_cen[[x]] <- norm$x[data_all[[uncensored]] %in% 0]
+  data_cen[[threshold]] <- norm$y[data_all[[uncensored]] %in% 0]
+  data_all[[x]] <- norm$x
+  
+  # For making predicted lines (with SE) 
+  xmin <- min(data_all[[x]], na.rm = TRUE)
+  xmax <- max(data_all[[x]], na.rm = TRUE)
+  x.out <- seq(xmin, xmax, length = resolution)
+  
+  # Create knots and splinen basis functions  
+  if (length(knots) == 1)
+    knots <- seq(xmin, xmax, length = knots)
+  
+  # Generate basis splines at the observed x values, using splines::bs()  
+  B <- t(splines::bs(data_all[[x]], knots = knots, degree=3, intercept = TRUE)) 
+  B.out <- t(splines::bs(x.out, knots = knots, degree=3, intercept = TRUE)) 
+  
+  # Generate basis splines for describing predicted spline line   
+  # x <- seq(from = xmin, to = xmax, length = resolution) # generating inputs
+  # B <- t(splines::bs(x, knots = knots, degree=3, intercept = TRUE)) 
+  
+  # Jags code to fit the model to the simulated data
+  
+  model_code = '
+model
+{
+
+  y.hat <- a0*x + a %*% B ## expected response  
+  y.hat.out <- a0*x.out + a %*% B.out ## expected response  
+  
+  # Likelihood
+  # Uncensored observations 
+  for (o in 1:O) {
+    y.uncens[o] ~ dnorm(y.hat[o], total_variance[o]^-1)
+    total_variance[o] <- meas_error[o]^2  + sigma^2
+  }
+  # Censored observations 
+  # Use max(..., 0.01) for p[c] to avoid that it can become practically zero
+  for (c in 1:C) {
+    Z1[c] ~ dbern(p[c])
+    p[c] <- max(pnorm(cut[c], y.hat[O+c], sigma^-2), 0.01)
+    
+  }
+
+  sigma <- 1/tau         ## convert tau to standard GLM scale
+  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  
+  # Linear effect  
+  a0 ~ dnorm(0, lambda[1])
+  
+  # Specify priors for spline terms
+  for (k in 1:K) {
+    a[k] ~ dnorm(0, lambda[2])
+  }
+  
+  ## smoothing parameter priors   
+  for (m in 1:2) {
+    lambda[m] ~ dgamma(.05,.005)
+    rho[m] <- log(lambda[m])
+  }
+}
+'
+  
+  # Set up the data for Qi's method
+  # Data has NOT normalized y values and centralized x values (in contrast to leftcensored_lm / leftcensored_lm_qi)
+  
+  # norm <- normalize_lm(data_all[[x]]))
+  
+  model_data <- list('y.uncens' = data_obs[[y]],
+                     'O' = nrow(data_obs),
+                     # normalizaton for SD = dividing by sd_y:                     
+                     'meas_error' = data_obs[[measurement_error]]/norm$parameters$sd_res,                         'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     'cut' = data_cen[[threshold]],
+                     'C' = nrow(data_cen),
+                     'x' = data_all[[x]],
+                     'x.out' = x.out,
+                     'B' = B,
+                     'B.out' = B.out,
+                     'K' = dim(B)[1])
+  
+  
+  # Choose the parameters to watch
+  model_parameters <-  c('a0', 'a', 'sigma','tau','y.hat.out')
+  
+  ### Run model
+  # Initial run, using just sigma and dic 
+  model_converged <- runjags::autorun.jags(
+    data = model_data,
+    monitor = model_parameters_for_convergence,     # adding 'a0' caused very slow convergece
+    model = model_code,
+    n.chains = n.chains,    # Number of different starting positions
+    startsample = 4000,     # Number of iterations
+    startburnin = n.burnin, # Number of iterations to remove at start
+    thin = n.thin)          # Amount of thinning
+  
+  # Add all model parameters and get samples for them
+  model_result <- runjags::extend.jags(model_converged, 
+                                       add.monitor = model_parameters,
+                                       sample = n.iter)
+  
+  # model_result
+  model_mcmc <- coda::as.mcmc(model_result)
+  
+  summary <- summary(model_mcmc)
+  
+  #
+  # DIC
+  #
+  dic.pd <- rjags::dic.samples(model = runjags::as.jags(model_result), n.iter=1000, type="pD"); dic.pd
+  
+  # Not used now:
+  # dic.popt <- dic.samples(model=model_run, n.iter=30000, type="popt"); dic.popt
+  
+  # Select the observations for which we got penalties
+  dic.sel.pd <- !is.nan(dic.pd$penalty )
+  
+  # Get penalties and deviances for those
+  pd <- dic.pd$penalty[dic.sel.pd]
+  deviance <- dic.pd$deviance[dic.sel.pd]
+  
+  # Calculate DIC
+  dic <- sum(deviance) + sum(pd)
+  
+  #
+  # Get predicted line 
+  #
+  quants <- summary$quantiles
+  length.out <- length(x.out)
+  pick_rownames <- sprintf("y.hat.out[%i]", 1:length.out)
+  # Denormalize predicted data
+  denorm_med <- denormalize_lm(x.out, quants[pick_rownames,"50%"], norm$parameters)
+  denorm_lo <- denormalize_lm(x.out, quants[pick_rownames,"2.5%"], norm$parameters)
+  denorm_hi <- denormalize_lm(x.out, quants[pick_rownames,"97.5%"], norm$parameters)
+  # Data for plottong predicted lines  
+  plot_data <- data.frame(
+    x = denorm_med$x, 
+    y = denorm_med$y,
+    y_lo = denorm_lo$y,
+    y_hi = denorm_hi$y
+  )
+  
+  list(summary = summary,
+       plot_data = plot_data,
+       model = model_mcmc,
+       model_from_jags = model_result,
+       dic_all = dic.pd,
+       dic = dic)  
+  
+}
