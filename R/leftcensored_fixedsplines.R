@@ -100,7 +100,8 @@ lc_fixedsplines <- function(data,
                             n.iter = 5000, 
                             n.burnin = 1000, 
                             n.thin = 2,
-                            type = "Qi"){
+                            type = "Qi",
+                            measurement_error = NULL){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -109,13 +110,20 @@ lc_fixedsplines <- function(data,
   # NOTE: CHECK THIS for multi-level statistical models:
   # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
   
-  if (is.numeric(grep(type, c("Qi", "dbern", "Bernoulli")))){
+  if (type == "Qi" & is.null(measurement_error)){
     result <- lc_fixedsplines_qi(
       data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
       knots=knots,
       resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
       n.thin=n.thin)
-  } else {
+  } else if (type == "Qi" & !is.null(measurement_error)){
+    result <- lc_fixedsplines_qi_measerror(
+      data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+      measurement_error=measurement_error,
+      knots=knots,
+      resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
+      n.thin=n.thin)
+  } else if (type %in% "dinterval" & is.null(measurement_error)) {
     result <- lc_fixedsplines_dinterval(
       data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
       knots=knots,

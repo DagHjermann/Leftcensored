@@ -260,12 +260,13 @@ model
   
 }
 
-# 
-lc_fixedsplines_qi <- function(data,
+# Fixed splines estimation given measurement errors
+lc_fixedsplines_qi_measerror <- function(data,
                                x = "x", 
                                y = "y", 
                                uncensored = "uncensored",
                                threshold = "threshold",
+                               measurement_error = "meas_error",
                                knots = 9,
                                resolution = 50,
                                n.chains = 4, 
@@ -332,13 +333,15 @@ model
   # Likelihood
   # Uncensored observations 
   for (o in 1:O) {
-    y.uncens[o] ~ dnorm(y.hat[o], sigma^-2)
+    y.uncens[o] ~ dnorm(y.hat[o], total_variance[o]^-1)
+    total_variance[o] <- meas_error[o]^2  + sigma^2
   }
   # Censored observations 
   # Use max(..., 0.01) for p[c] to avoid that it can become practically zero
   for (c in 1:C) {
     Z1[c] ~ dbern(p[c])
     p[c] <- max(pnorm(cut[c], y.hat[O+c], sigma^-2), 0.01)
+    
   }
 
   sigma <- 1/tau         ## convert tau to standard GLM scale
@@ -367,7 +370,8 @@ model
   
   model_data <- list('y.uncens' = data_obs[[y]],
                      'O' = nrow(data_obs),
-                     'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     # normalizaton for SD = dividing by sd_y:                     
+                     'meas_error' = data_obs[[measurement_error]]/norm$parameters$sd_res,                         'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
                      'cut' = data_cen[[threshold]],
                      'C' = nrow(data_cen),
                      'x' = data_all[[x]],
