@@ -261,26 +261,26 @@ model
 }
 
 
-# Linear regression for left-censored data
-lc_linear_qi_measerror <- function(data,
-                                   x = "x", 
-                                   y = "y", 
-                                   uncensored = "uncensored",
-                                   threshold = "threshold",
-                                   measurement_error = "meas_error",
-                                   resolution = 50,
-                                   n.chains = 4, 
-                                   n.iter = 5000, 
-                                   n.burnin = 1000, 
-                                   n.thin = 2,
-                                   mean_y = NULL,
-                                   sd_y = NULL,
-                                   plot_input = FALSE,
-                                   plot_norm = FALSE,
-                                   detailed = FALSE,
-                                   model_parameters_for_convergence = c("intercept", "slope", "sigma"),
-                                   keep_model = FALSE,
-                                   keep_model_from_jags = FALSE){
+# Linear regression for data without left-censored observations
+lc_linear_qi_measerror_uncens <- function(data,
+                                          x = "x", 
+                                          y = "y", 
+                                          uncensored = "uncensored",
+                                          threshold = "threshold",
+                                          measurement_error = "meas_error",
+                                          resolution = 50,
+                                          n.chains = 4, 
+                                          n.iter = 5000, 
+                                          n.burnin = 1000, 
+                                          n.thin = 2,
+                                          mean_y = NULL,
+                                          sd_y = NULL,
+                                          plot_input = FALSE,
+                                          plot_norm = FALSE,
+                                          detailed = FALSE,
+                                          model_parameters_for_convergence = c("intercept", "slope", "sigma"),
+                                          keep_model = FALSE,
+                                          keep_model_from_jags = FALSE){
   
   # Censoring vs truncation:
   # https://stats.stackexchange.com/a/144047/13380 
@@ -316,12 +316,6 @@ model
     y.uncens.error[o] ~ dnorm(y.uncens[o], meas_error[o]^-2) 
     y.uncens[o] ~ dnorm(y.expect[o], sigma^-2)
     y.expect[o] <- intercept + slope * x[o]
-  }
-  # Censored observations 
-  for (c in 1:C) {
-    Z1[c] ~ dbern(p[c])
-    p[c] <- pnorm(cut[c], y.expect[O+c], sigma^-2)
-    y.expect[O+c] <- intercept + slope * x[O+c]
   }
   for (i in 1:resolution) {
     y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
@@ -360,16 +354,17 @@ model
   
   # Split the data into uncensored and censored parts
   data_obs <- data[data[[uncensored]] %in% 1,]
-  data_cen <- data[data[[uncensored]] %in% 0,]
-  data_all <- rbind(data_obs, data_cen)
+  # data_cen <- data[data[[uncensored]] %in% 0,]
+  # data_all <- rbind(data_obs, data_cen)
+  data_all <- data_obs
   
   model_data <- list(x = norm_x(data[[x]]),
                      y.uncens.error = norm_y(data_obs[[y]]),
                      meas_error = data_obs[[measurement_error]]/sd_y,    # normalizaton for SD = dividing by sd_y                     
                      O = nrow(data_obs),
-                     Z1 = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
-                     cut = norm_y(data_cen[[threshold]]),
-                     C = nrow(data_cen),
+                     # Z1 = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     # cut = norm_y(data_cen[[threshold]]),
+                     # C = nrow(data_cen),
                      x.out = norm_x(x.out),
                      resolution = resolution,
                      mean_y = mean_y,
