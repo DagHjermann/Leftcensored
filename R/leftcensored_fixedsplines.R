@@ -117,12 +117,21 @@ lc_fixedsplines <- function(data,
       resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
       n.thin=n.thin)
   } else if (type == "Qi" & !is.null(measurement_error)){
+    if (mean(data[[uncensored]]) < 1){
     result <- lc_fixedsplines_qi_measerror(
       data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
       measurement_error=measurement_error,
       knots=knots,
       resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
       n.thin=n.thin)
+    } else {
+      result <- lc_fixedsplines_qi_measerror_uncens(
+        data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
+        measurement_error=measurement_error,
+        knots=knots,
+        resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
+        n.thin=n.thin)
+    }
   } else if (type %in% "dinterval" & is.null(measurement_error)) {
     result <- lc_fixedsplines_dinterval(
       data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,

@@ -371,7 +371,8 @@ model
   model_data <- list('y.uncens' = data_obs[[y]],
                      'O' = nrow(data_obs),
                      # normalizaton for SD = dividing by sd_y:                     
-                     'meas_error' = data_obs[[measurement_error]]/norm$parameters$sd_res,                         'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     'meas_error' = data_obs[[measurement_error]]/norm$parameters$sd_res,                         
+                     'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
                      'cut' = data_cen[[threshold]],
                      'C' = nrow(data_cen),
                      'x' = data_all[[x]],
@@ -451,8 +452,8 @@ model
 }
 
 
-# 
-lc_fixedsplines_qi_measerror <- function(data,
+# As lc_fixedsplines_qi_measerror, but to be used if there are no censored observations  
+lc_fixedsplines_qi_measerror_uncens <- function(data,
                                          x = "x", 
                                          y = "y", 
                                          uncensored = "uncensored",
@@ -483,16 +484,17 @@ lc_fixedsplines_qi_measerror <- function(data,
   
   # Split the data into uncensored and censored parts
   data_obs <- data[data[[uncensored]] %in% 1,]
-  data_cen <- data[data[[uncensored]] %in% 0,]
-  data_all <- rbind(data_obs, data_cen)
+  # data_cen <- data[data[[uncensored]] %in% 0,]
+  # data_all <- rbind(data_obs, data_cen)
+  data_all <- data_obs
   
   # Normalize x and y
   data_all_original <- data_all
   norm <- normalize_lm(data_all[[x]], c(data_obs[[y]], data_cen[[threshold]]))
   data_obs[[x]] <- norm$x[data_all[[uncensored]] %in% 1]
   data_obs[[y]] <- norm$y[data_all[[uncensored]] %in% 1]
-  data_cen[[x]] <- norm$x[data_all[[uncensored]] %in% 0]
-  data_cen[[threshold]] <- norm$y[data_all[[uncensored]] %in% 0]
+  # data_cen[[x]] <- norm$x[data_all[[uncensored]] %in% 0]
+  # data_cen[[threshold]] <- norm$y[data_all[[uncensored]] %in% 0]
   data_all[[x]] <- norm$x
   
   # For making predicted lines (with SE) 
@@ -562,9 +564,10 @@ model
   model_data <- list('y.uncens' = data_obs[[y]],
                      'O' = nrow(data_obs),
                      # normalizaton for SD = dividing by sd_y:                     
-                     'meas_error' = data_obs[[measurement_error]]/norm$parameters$sd_res,                         'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
-                     'cut' = data_cen[[threshold]],
-                     'C' = nrow(data_cen),
+                     'meas_error' = data_obs[[measurement_error]]/norm$parameters$sd_res,                         
+                     # 'Z1' = rep(1, nrow(data_cen)),  # because all are left-censored, see text below 'Model 2' in Qi' et al. 2022's paper
+                     # 'cut' = data_cen[[threshold]],
+                     # 'C' = nrow(data_cen),
                      'x' = data_all[[x]],
                      'x.out' = x.out,
                      'B' = B,
