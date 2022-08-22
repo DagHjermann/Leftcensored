@@ -56,7 +56,7 @@ model
     p[c] <- pnorm(cut[c], intercept + slope * x[O+c], sigma^-2)
   }
   for (i in 1:resolution) {
-    y.hat.out.norm[i] <- dnorm(intercept + slope * x.out[i]
+    y.hat.out.norm[i] <- intercept + slope * x.out[i]
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
 
@@ -248,7 +248,7 @@ model
 # Linear regression for left-censored data, for the case where no data actually are censored  
 # Using state-space - could have used an ordinary regression here  
 
-lc_linear_qi_nocens <- function(data,
+lc_linear_qi_uncens <- function(data,
                          x = "x", 
                          y = "y", 
                          uncensored = "uncensored",
@@ -299,7 +299,7 @@ model
     y.uncens[o] ~ dnorm(intercept + slope * x[o], sigma^-2)
   }
   for (i in 1:resolution) {
-    y.hat.out.norm[i] <- dnorm(intercept + slope * x.out[i]
+    y.hat.out.norm[i] <- intercept + slope * x.out[i]
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
 
