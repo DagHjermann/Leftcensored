@@ -313,8 +313,8 @@ model
 {
   # Uncensored observations 
   for (o in 1:O) {
-    y.uncens.error[o] ~ dnorm(y.uncens[o], meas_error[o]^-2) 
-    y.uncens[o] ~ dnorm(y.expect[o], sigma^-2)
+    y.uncens.error[o] ~ dnorm(y.uncens[o], total_variance[o]^-1) 
+    total_variance[o] <- sigma^2 + meas_error[o]^2  
     y.expect[o] <- intercept + slope * x[o]
   }
   for (i in 1:resolution) {
