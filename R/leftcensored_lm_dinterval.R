@@ -53,10 +53,7 @@ model
     y.uncens[i] ~ dnorm(intercept + slope * x[i], sigma^-2)
   }
   for (i in 1:resolution) {
-    y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
-  }
-  
-  for (i in 1:resolution){
+    y.hat.out.norm[i] <- intercept + slope * x.out[i]
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
 

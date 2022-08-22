@@ -61,10 +61,7 @@ model
     y.expect[O+c] <- intercept + slope * x[O+c]
   }
   for (i in 1:resolution) {
-    y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
-  }
-  
-  for (i in 1:resolution){
+    y.hat.out.norm[i] <- intercept + slope * x.out[i]
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
   
@@ -313,15 +310,12 @@ model
 {
   # Uncensored observations 
   for (o in 1:O) {
-    y.uncens.error[o] ~ dnorm(y.uncens[o], total_variance[o]^-1) 
+    y.uncens.error[o] ~ dnorm(y.expect[o], total_variance[o]^-1) 
     total_variance[o] <- sigma^2 + meas_error[o]^2  
     y.expect[o] <- intercept + slope * x[o]
   }
   for (i in 1:resolution) {
-    y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
-  }
-  
-  for (i in 1:resolution){
+    y.hat.out.norm[i] <- intercept + slope * x.out[i]
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
   

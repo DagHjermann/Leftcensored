@@ -56,10 +56,7 @@ model
     p[c] <- pnorm(cut[c], intercept + slope * x[O+c], sigma^-2)
   }
   for (i in 1:resolution) {
-    y.hat.out.norm[i] ~ dnorm(intercept + slope * x.out[i], sigma^-2)
-  }
-  
-  for (i in 1:resolution){
+    y.hat.out.norm[i] <- dnorm(intercept + slope * x.out[i]
     y.hat.out[i] <- y.hat.out.norm[i]*sd_y + mean_y
   }
 
