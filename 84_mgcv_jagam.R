@@ -189,7 +189,7 @@ input_list <- list(
 
 jm_list <- pmap(input_list, 
                 function(file, jd) jags.model(file, data=jd$jags.data, inits=jd$jags.ini, n.chains=2)  # changed from n.chains=1 
-  )
+)
 
 # Update
 walk(jm_list, update, n.iter = 10000)
@@ -272,7 +272,7 @@ input_list_gam <- list(
   jd = list(jd_tp3, jd_tp4, jd_tp5))
 
 jm_list_gam <- pmap(input_list_jagam, 
-                function(file, jd) jags.model(file, data=jd$jags.data, inits=jd$jags.ini, n.chains=2)  # changed from n.chains=1 
+                    function(file, jd) jags.model(file, data=jd$jags.data, inits=jd$jags.ini, n.chains=2)  # changed from n.chains=1 
 )
 
 # Update
@@ -283,7 +283,7 @@ names(jm_list_gam) <- c("gam, df = 2", "gam, df = 3", "gam, df = 4")
 
 # Make jm_list for linear + gam models    
 jm_list = append(list(Linear = jm_linear), jm_list_gam)
-  
+
 # Get samples (gam only)
 sam_list <- map(jm_list[-1], jags.samples, c("b","rho","lambda","scale"), n.iter=10000, thin=10)
 
@@ -309,6 +309,7 @@ map_dbl(jm_list, get_dic)
 ggplot(dat, aes(x2, y)) +
   geom_point()
 
+# Create censored data
 thresh <- 4
 dat_cens <- dat[c("x2","y")]
 dat_cens$y_orig <- dat_cens$y
@@ -330,11 +331,11 @@ jags.file_tp5_orig <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens_o
 jags.file_tp5_forfit <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens_forfit.txt"
 # edit(file=jags.file_tp5_lc)
 # debugonce(jagam)
-jd_tp5_lc <- jagam(y_orig ~ s(x2, bs="tp", k=k), 
-                data = dat_cens_ordered, 
-                file = jags.file_tp5_orig,   # this file will be overwritten (was used as basis for "_leftcens" file)
-                sp.prior = "gamma", 
-                diagonalize = TRUE)
+jd_tp5_lc <- jagam(y ~ s(x2, bs="tp", k=k), 
+                   data = dat_cens_ordered, 
+                   file = jags.file_tp5_orig,   # this file will be overwritten (was used as basis for "_leftcens" file)
+                   sp.prior = "gamma", 
+                   diagonalize = TRUE)
 
 # Modify jags.data object
 str(jd_tp5_lc$jags.data, 1)
@@ -378,7 +379,7 @@ jags.file_tp5_forfit <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens
 
 # Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
 # Make (2) jd_tp5_lc$jags.data (will be manpulated below)
-jd_tp5_lc <- jagam(y_orig ~ s(x2, bs="tp", k=k), 
+jd_tp5_lc <- jagam(y ~ s(x2, bs="tp", k=k), 
                    data = dat_cens_ordered, 
                    file = jags.file_tp5_orig,   # this file will be overwritten (was used as basis for "_leftcens" file)
                    sp.prior = "gamma", 
@@ -396,10 +397,14 @@ jd_tp5_lc$jags.data$cut <- dat_cens_ordered$cut[dat_cens_ordered$uncensored == 0
 # Make 'X matrix" for the fitted data  
 dat_for_fit <- data.frame(
   x2 = seq(0, 1, length = 30),
-  y_orig = 1   # can be whatever
 )
+# Use ordinary gam (on uncensored data) to add the y
+# (Reason: perhaps the y value affects some sort of normalization)  
+dat_for_fit$y <- predict(
+  mgcv::gam(y~x2, data = subset(dat_cens_ordered, !is.na(y))),
+  newdata = dat_for_fit)
 
-jd_tp5_lc_forfit <- jagam(y_orig ~ s(x2, bs="tp", k=k), 
+jd_tp5_lc_forfit <- jagam(y ~ s(x2, bs="tp", k=k), 
                           data = dat_for_fit, 
                           file = jags.file_tp5_forfit,   # this file will be overwritten (and not used)
                           sp.prior = "gamma", 
@@ -441,11 +446,11 @@ ggplot(fitted, aes(x2))+
   geom_point(data = dat_cens_ordered, aes(x2, y)) +
   geom_point(data = dat_cens_ordered, aes(x2, cut), shape = 4)
 # That didn't look good....
-  
+
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
-# Left-censored, final version ---- 
+# Left-censored, working version ---- 
 #
 # Strategy: add the x's to be used for the fitted line
 #   to the end of the data
@@ -466,8 +471,8 @@ jags.file_tp5_forfit <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens
 # Make 'X matrix" for the fitted data  
 dat_for_fit <- data.frame(
   x2 = seq(0, 1, length = 30),
-  y_orig = 1   # can be whatever
 )
+dat_cens_ordered[sel,] %>% View
 
 # dat_cens_ordered1 = data file
 # dat_cens_ordered2 = with addition for daa for fitted line (3o points)
@@ -482,7 +487,7 @@ nrow(dat_cens_ordered2)
 
 # Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
 # Make (2) jd_tp5_lc$jags.data (will be manpulated below)
-jd_tp5_lc <- jagam(y_orig ~ s(x2, bs="tp", k=k), 
+jd_tp5_lc <- jagam(y ~ s(x2, bs="tp", k=k), 
                    data = dat_cens_ordered2,    # file no. 2 here
                    file = jags.file_tp5_orig,   # this file will be overwritten (was used as basis for "_leftcens" file)
                    sp.prior = "gamma", 
@@ -551,7 +556,7 @@ nrow(dat_cens_fortest)
 
 # Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
 # Make (2) jd_tp5_lc$jags.data (will be manpulated below)
-jd_tp5_lc <- jagam(y_orig ~ s(x2, bs="tp", k=k), 
+jd_tp5_lc <- jagam(y ~ s(x2, bs="tp", k=k), 
                    data = dat_cens_fortest,    # file no. 2 here
                    file = jags.file_tp5_orig,   # this file will be overwritten (was used as basis for "_leftcens" file)
                    sp.prior = "gamma", 
@@ -597,13 +602,210 @@ q_tp5 <- summary(model_mcmc)$quantiles
 
 
 
-class(sam)
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Left-censored, final version ---- 
+#
+# Start with n objects in memory  
+# Strategy, see "working version"  
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-class(x)
-summary(x)
+# Simulate data
+set.seed(2) ## simulate some data... 
+n <- 400
+dat <- gamSim(1,n=n,dist="normal",scale=2)  
 
-pd <- data.frame(x0=c(.5,.6), x1=c(.4,.2),x2=c(.8,.4),x3=c(.1,.1))
-fv <- predict(jam,newdata=pd)
-## and some minimal checking...
-require(coda)
+# we will use only x2 and y, and x2 is renamed 'x'
+dat <- dat[c("x2", "y")]
+names(dat)[1] <- "x"
+
+ggplot(dat, aes(x, y)) +
+  geom_point()
+
+#
+# Create censored data
+#
+
+# Here: fixed threshold (but that is not necessary)
+thresh <- 4
+dat_cens <- dat[c("x","y")]
+dat_cens$y_orig <- dat_cens$y       # original (will not be used)
+sel_uncens <- dat_cens$y > thresh
+dat_cens$y[!sel_uncens] <- NA
+dat_cens$cut <- thresh
+dat_cens$cut[sel_uncens] <- NA
+dat_cens$uncensored <- 0
+dat_cens$uncensored[sel_uncens] <- 1
+
+# Order file with uncensored data first
+dat_cens_ordered1 <- bind_rows(
+  dat_cens[sel_uncens,],
+  dat_cens[!sel_uncens,]
+)
+# y_comb is the combination of y and cut
+# - will be used as the response in the analysis
+# - will only affect the uncensored values
+dat_cens_ordered1$y_comb <- c(dat_cens[sel_uncens, "y"], 
+                              dat_cens[!sel_uncens, "cut"])
+
+ggplot() +
+  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
+  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+
+#
+# Model files (specific for k=5)
+#
+
+# Model file that will be used for left-censored analysis
+# (made based on the 'orig' model)
+jags.file_tp5_lc <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens.txt"
+# Model file that will be made by 'jagam'  
+jags.file_tp5_orig <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens_orig.txt"
+
+#
+# Make x data that will be used for making the fittd line + conf.int.
+# - to be added to the rest of the data
+# - we also make a y (could perhaps be NA?)
+#
+# Make x
+dat_for_fit <- data.frame(
+  x = seq(0, 1, length = 30)
+)
+# Make y
+# Use ordinary gam (on uncensored data) to add the y
+# (Reason: perhaps the y value affects some sort of normalization)
+dat_for_fit$y_comb <- predict(
+  mgcv::gam(y_comb~x, data = dat_cens_ordered1),
+  newdata = dat_for_fit)
+
+#
+# Add "x data for fitted line" to the "actual" data
+#
+# dat_cens_ordered1 = data file
+# dat_cens_ordered2 = with addition for daa for fitted line (3o points)
+dat_cens_ordered2 <- bind_rows(
+  dat_cens_ordered1,
+  dat_for_fit
+)
+
+nrow(dat_cens_ordered1)
+nrow(dat_cens_ordered2)
+
+# Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
+# Make (2) jd_tp5_lc$jags.data (will be manpulated below)
+jd_tp5_lc <- jagam(y_comb ~ s(x, bs="tp", k=5), 
+                   data = dat_cens_ordered2,    # file no. 2 here
+                   file = jags.file_tp5_orig,   # this file will be overwritten (was used as basis for "_leftcens" file)
+                   sp.prior = "gamma", 
+                   diagonalize = TRUE)
+
+# Modify jags.data object
+n <- sum(dat_cens_ordered1$uncensored %in% 1)   # file no. 1 here 
+m <- sum(dat_cens_ordered1$uncensored %in% 0)   # file no. 1 here
+jd_tp5_lc$jags.data$n <- n   # - makes sure only these data are use for the likelihood
+jd_tp5_lc$jags.data$m <- m   #    - " -
+jd_tp5_lc$jags.data$Z <- c(rep(0,n), rep(1, m))
+jd_tp5_lc$jags.data$cut <- dat_cens_ordered1$cut[dat_cens_ordered1$uncensored %in% 0]
+
+# Check
+str(jd_tp5_lc$jags.data, 1)
+
+#
+# . run model - alt. 1 ---- 
+# Using rjags::jags.model 
+#
+# edit(file = jags.file_tp5_lc)
+jm <- jags.model(jags.file_tp5_lc, 
+                 data=jd_tp5_lc$jags.data, 
+                 inits=jd_tp5_lc$jags.ini, 
+                 n.chains=2)  # changed from n.chains=1 
+# list.samplers(jm)
+update(jm, n.iter=10000)
+
+# Sample main varables  
+sam <- jags.samples(jm, c("b","rho","lambda","scale"), n.iter=10000, thin=10)
+
+# Sample varaibles that have been inserted only to get the fitted line
+mu_fitted_names <- paste0("mu[", nrow(dat_cens_ordered1)+1, ":", nrow(dat_cens_ordered2), "]")
+
+sam_fit <- jags.samples(jm, mu_fitted_names, n.iter=2000, thin=2)
+
+# Make 'plot_data'  
+fitted_n <- dim(sam_fit[[1]])[1]
+qs <- c(0.025, 0.5, 0.975)
+plot_data <- seq_len(fitted_n) %>% map_dfr(~quantile(sam_fit[[1]][.x,,], qs))
+names(plot_data) <- paste0("Q_", qs)
+plot_data <- data.frame(x = dat_for_fit$x, plot_data)
+
+ggplot(plot_data, aes(x))+
+  geom_ribbon(aes(ymin = Q_0.025, ymax = Q_0.975), fill = "lightblue") +
+  geom_line(aes(y = Q_0.5)) +
+  geom_point(data = dat_cens_ordered1, aes(x, y)) +
+  geom_point(data = dat_cens_ordered1, aes(x, cut), shape = 6)
+# Worked :-)
+
+#
+# . run model - alt. 2 ---- 
+# Using runjags::autorun.jags
+#
+
+# Choose the parameters to watch
+model_parameters_for_convergence <- c("b","rho","lambda","scale")
+# Sample varaibles that have been inserted only to get the fitted line
+mu_fitted_names1 <- paste0("mu[", nrow(dat_cens_ordered1)+1, ":", nrow(dat_cens_ordered2), "]")
+mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_cens_ordered1)+1, nrow(dat_cens_ordered2)), "]")
+
+n.burnin <- 4000
+n.thin <- 2
+n.iter <- 4000
+
+### Run model
+# Initial run  
+model_converged <- runjags::autorun.jags(
+  data = jd_tp5_lc$jags.data,
+  monitor = model_parameters_for_convergence,     
+  inits = jd_tp5_lc$jags.ini,
+  model = jags.file_tp5_lc,
+  n.chains = 2,    # Number of different starting positions
+  startsample = 4000,     # Number of iterations
+  startburnin = n.burnin, # Number of iterations to remove at start
+  thin = n.thin)          # Amount of thinning
+
+# Add all model parameters and get samples for them
+model_result <- runjags::extend.jags(model_converged, 
+                                     add.monitor = mu_fitted_names1,
+                                     sample = n.iter)
+
+# model_result
+model_mcmc <- coda::as.mcmc(model_result)
+
+summary <- summary(model_mcmc)
+quants <- summary$quantiles
+pick_rownames <- rownames(quants) %in% mu_fitted_names2
+# Make 'plot_data'  
+# y and lower and upper CI  values are back-transformed (un-normalized) using unnorm:
+plot_data <- data.frame(
+  x = dat_for_fit$x, 
+  y = quants[pick_rownames,"50%"],
+  y_lo = quants[pick_rownames,"2.5%"],
+  y_hi = quants[pick_rownames,"97.5%"]  )
+
+ggplot(plot_data, aes(x))+
+  geom_ribbon(aes(ymin = y_lo, ymax = y_hi), fill = "lightblue") +
+  geom_line(aes(y = y)) +
+  geom_point(data = dat_cens_ordered1, aes(x, y)) +
+  geom_point(data = dat_cens_ordered1, aes(x, cut), shape = 6)
+# Worked :-)
+
+
+get_dic(jm)
+
+effectiveSize(as.mcmc.list(sam_fit[[mu_fitted_names1]]))
+
+
+# 
+# Appendix ----
+#
+
 effectiveSize(as.mcmc.list(sam$b))
