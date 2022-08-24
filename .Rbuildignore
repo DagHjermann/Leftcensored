@@ -7,5 +7,6 @@
 ^Test_script agriCens\.R$
 ^starchGrainU\.rda$
 ^Test_script zeroes trick\.R$
+^84_mgcv_jagam\.R$
 
 ^LICENSE\.md$
