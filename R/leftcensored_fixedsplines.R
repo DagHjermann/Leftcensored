@@ -1,4 +1,4 @@
-#' Linear regression for left-censored data
+#' Spline regression for left-censored data
 #' 
 #' This function runs spline regression (with fixed number and placement of knots) when the dependent
 #' (y) variable is left-censored. That is, if the actual value is below some below some limit 
@@ -26,9 +26,10 @@
 #' no decreasing or increasing trend in the traceplot). One can also use R2jags::traceplot to assess whether the chains behave differently, 
 #' depending on their diferent starting point. If they do, n.burnin should be increased.
 #' @param n.thin The number of MCMC iterations that are kept for statistics.
-#' @param type Type of Jags model formulation used. The default (type = 'Qi') uses the method of Qi et al. (2022). The alternative is 
-#' type = 'dinterval', which uses the method used in the standard JAGS documentation. The advantage of the method of Qi et al. is that
-#' it returns the deviance information criterion (DIC).   
+#' @param type Type of Jags model formulation used. The default (type = 'cr') uses cubic regression splines (with fixed knots). 
+#' The handling of censored data using the method of Qi et al. (2022). Type = 'dinterval' uses cubic regression splines and the 
+#' the 'dinterval' for handling of censored data (used in the standard JAGS documentation).  
+#' The advantage of the method of Qi et al. is that it returns the deviance information criterion (DIC).   
 #' 
 #' @keywords Statistics, regression, censored
 #' 
@@ -89,7 +90,7 @@
 #' }
 #' 
 #' @export
-lc_fixedsplines <- function(data,
+lc_splines <- function(data,
                             x = "x", 
                             y = "y", 
                             uncensored = "uncensored",
@@ -100,7 +101,7 @@ lc_fixedsplines <- function(data,
                             n.iter = 5000, 
                             n.burnin = 1000, 
                             n.thin = 2,
-                            type = "Qi",
+                            type = "cr",
                             measurement_error = NULL){
   
   # Censoring vs truncation:
@@ -110,22 +111,22 @@ lc_fixedsplines <- function(data,
   # NOTE: CHECK THIS for multi-level statistical models:
   # https://stats.stackexchange.com/questions/185254/multi-level-bayesian-hierarchical-regression-using-rjags
   
-  if (type == "Qi" & is.null(measurement_error)){
-    result <- lc_fixedsplines_qi(
+  if (type == "cr" & is.null(measurement_error)){
+    result <- lc_fixedsplines_cr(
       data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
       knots=knots,
       resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
       n.thin=n.thin)
-  } else if (type == "Qi" & !is.null(measurement_error)){
+  } else if (type == "cr" & !is.null(measurement_error)){
     if (mean(data[[uncensored]]) < 1){
-    result <- lc_fixedsplines_qi_measerror(
+    result <- lc_fixedsplines_cr_measerror(
       data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
       measurement_error=measurement_error,
       knots=knots,
       resolution=resolution, n.chains=n.chains, n.iter=n.iter, n.burnin=n.burnin,
       n.thin=n.thin)
     } else {
-      result <- lc_fixedsplines_qi_measerror_uncens(
+      result <- lc_fixedsplines_cr_measerror_uncens(
         data=data, x=x, y=y, uncensored=uncensored, threshold=threshold,
         measurement_error=measurement_error,
         knots=knots,

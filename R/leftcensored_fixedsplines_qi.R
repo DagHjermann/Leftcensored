@@ -1,6 +1,6 @@
-#' Linear regression for left-censored data
+#' Cubic regression spline for left-censored data
 #' 
-#' This function runs spline regression (with fixed number and placement of knots) when the dependent
+#' These function runs spline regression (with fixed number and placement of knots) when the dependent
 #' (y) variable is left-censored. That is, if the actual value is below some below some limit 
 #' of quantification, LOQ, we we cannot measure it. We only know that the actual value is
 #' somewhere below LOQ. If the data are given as typical chemical measurements with one column
@@ -75,7 +75,7 @@
 #' 
 #' @export
 
-lc_fixedsplines_qi <- function(data,
+lc_fixedsplines_cr <- function(data,
                             x = "x", 
                             y = "y", 
                             uncensored = "uncensored",
@@ -261,7 +261,7 @@ model
 }
 
 # Fixed splines estimation given measurement errors
-lc_fixedsplines_qi_measerror <- function(data,
+lc_fixedsplines_cr_measerror <- function(data,
                                x = "x", 
                                y = "y", 
                                uncensored = "uncensored",
@@ -452,8 +452,8 @@ model
 }
 
 
-# As lc_fixedsplines_qi_measerror, but to be used if there are no censored observations  
-lc_fixedsplines_qi_measerror_uncens <- function(data,
+# As lc_fixedsplines_cr_measerror, but to be used if there are no censored observations  
+lc_fixedsplines_cr_measerror_uncens <- function(data,
                                          x = "x", 
                                          y = "y", 
                                          uncensored = "uncensored",
