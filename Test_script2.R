@@ -5,17 +5,20 @@
 if (FALSE){
   library(devtools)
   load_all()
-}
+  install()
+
+  }
 
 #
-# Linear regression ----
+# Linear, no measurement error ----
 #
 
 
 # Simulate data and estimate regression 
 set.seed(11)
 sim <- lc_simulate(n = 30)   # also plots the data
-# debugonce(lc_linear)
+
+# Perform estimation
 result <- lc_linear(sim$data)
 
 # Get best estimate fitted line       
@@ -32,7 +35,47 @@ result$dic
 
 
 #
-# Linear regression, measurement error ----
+# . No rows with censored data ----
+#
+
+# Simulate data and estimate regression 
+set.seed(11)
+# Change the thresholds so no data are censored  
+sim <- lc_simulate(n = 30, threshold_1 = -5, threshold_2 = -5)   # also plots the data
+
+# Perform estimation
+result <- lc_linear(sim$data)
+
+# Get best estimate fitted line       
+a <- result$intercept["50%"]
+b <- result$slope["50%"]
+# Add regression line to the plot  
+abline(a, b, col = "green3")
+# Add confidence interval  
+lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green3")
+lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green3")
+
+# DIC
+result$dic
+
+# Using good old lm()  
+# A bit different result (because data are not normalized before estimation?)  
+result_lm <- lm(y~x, data = sim$data)
+result$plot_data_lm <- result$plot_data
+result_lm_pred <- predict(result_lm, result$plot_data_lm, se.fit = TRUE) 
+result$plot_data_lm$y <- result_lm_pred$fit
+result$plot_data_lm$y_lo <- result_lm_pred$fit - 1.96*result_lm_pred$se.fit
+result$plot_data_lm$y_hi <- result_lm_pred$fit + 1.96*result_lm_pred$se.fit
+## Add regression line to the plot  
+abline(coef = coef(result_lm), col = "red", lty = "dotted")
+# Add confidence interval  
+lines(y_lo ~ x, data = result$plot_data_lm, lty = "dotted", col = "red")
+lines(y_hi ~ x, data = result$plot_data_lm, lty = "dotted", col = "red")
+
+
+
+#
+# Linear, measurement error ----
 #
 
 #
@@ -58,7 +101,7 @@ lines(y_hi ~ x, data = result_me$plot_data, lty = "dashed", col = "purple")
 result_me$dic
 
 #
-# . Additive measurement error ----
+# . Additive measurement errors ----
 #
 
 error_size <- c(0.1, 2, 5, 10)
@@ -79,7 +122,7 @@ lc_plot(sim$data, results = result_me_list, facet = "cols")
 
 
 #
-# . Measurement error given as percent, log-transformed data ----
+# . Measurement error as percentage, log-transformed data ----
 #
 
 # Data are log-transformed -> proportional error becomes additive
@@ -89,6 +132,40 @@ lc_plot(sim$data, results = result_me_list, facet = "cols")
 #   standard error becomes additive with sd = exp(errorfraction)-1
 # See "Theory" below!
 
+
+#
+# .. Test/demonstration ----
+#
+
+# Simulate data and estimate regression 
+set.seed(11)
+sim <- lc_simulate(n = 30, 
+                   intercept = 3, slope = -0.2, sigma = 1, 
+                   threshold_1 = 1.5, threshold_2 = 0.8, threshold_change = 4)
+sim$data$y_orig <- exp(sim$data$y)
+# plot(y_orig ~ x, data = sim$data)
+
+
+# Assume 40% measurement error (fraction = 0.4)
+sim$data <- sim$data %>%
+  mutate(
+    y_orig = exp(y),
+    error_orig = y_orig*0.4,
+    error_log = exp(0.4)-1
+  )
+
+# Plot on original scale
+ggplot(sim$data, aes(x, y_orig)) +
+  geom_pointrange(aes(ymin = y_orig - error_orig, 
+                      ymax = y_orig + error_orig))
+
+# Plot on log scale
+ggplot(sim$data, aes(x, y)) +
+  geom_pointrange(aes(ymin = y - error_log, 
+                      ymax = y + error_log))
+
+result_me <- lc_linear(sim$data, measurement_error = "error_log")
+lc_plot(sim$data, results = result_me)
 
 # Simulate data and estimate regression 
 set.seed(11)
@@ -125,6 +202,12 @@ lc_plot(sim$data, results = result_me)
 # .. same data, different percentages ----
 #
 
+# Simulate data (without measurement error given)
+set.seed(11)
+sim <- lc_simulate(n = 30, 
+                   intercept = 3, slope = -0.2, sigma = 1, 
+                   threshold_1 = 1.5, threshold_2 = 0.8, threshold_change = 4)
+
 get_data <- function(error_percent){
   sim$data <- sim$data %>%
     mutate(
@@ -158,11 +241,77 @@ results_me %>%
                       ymax = y + error_log)) +
   facet_wrap(vars(error_percent))
 
+# Get normalized data used as input to the Jags modelling
+model_data <- map(result_me_list, "model_data")
 
+# Get "observed" (uncensored) values only (number 1:O) 
+jags_input <- purrr::map_dfr(model_data, ~data.frame(x = .$x[1:.$O], 
+                                                     y = .$y.uncens.error[1:.$O], 
+                                                     error = .$meas_error), .id = "error_percent")
+# - plot
+ggplot(jags_input, aes(x, y)) +
+  geom_pointrange(aes(ymin = y - error, 
+                      ymax = y + error)) +
+  facet_wrap(vars(error_percent))
+
+#
+# . No rows with censored data ----
+#
+
+# Simulate data and estimate regression 
+set.seed(11)
+sim <- lc_simulate(n = 30, threshold_1 = -5, threshold_2 = -5)   # also plots the data
+sim$data$meas_error <- 5
+result_me <- lc_linear(sim$data, measurement_error = "meas_error")
+
+# Get best estimate fitted line       
+a <- result_me$intercept["50%"]
+b <- result_me$slope["50%"]
+# Add regression line to the plot  
+abline(a, b, col = "purple")
+# Add confidence interval  
+lines(y_lo ~ x, data = result_me$plot_data, lty = "dashed", col = "purple")
+lines(y_hi ~ x, data = result_me$plot_data, lty = "dashed", col = "purple")
+
+# DIC
+result_me$dic
+
+#
+# . No rows with censored data, different errors ----
+#
+
+error_size <- c(0.1, 2, 5, 10)
+
+# Function for setting measurement error and then estimate regression
+get_result <- function(error_size){
+  sim$data$meas_error <- error_size
+  lc_linear(sim$data, measurement_error = "meas_error")
+}
+
+# Estimate regression for all error sizes  
+result_me_list <- purrr::map(error_size, get_result)
+names(result_me_list) <- paste("Error =", error_size)
+
+# Estimate regression without error
+ordinary_lm <- predict.lm(lm(y~x, data = sim$data), se.fit = TRUE) 
+ordinary_lm_plot_data <- data.frame(
+  x = sim$data$x,
+  y = ordinary_lm$fit,
+  y_lo = ordinary_lm$fit - 1.96*ordinary_lm$se.fit,
+  y_hi = ordinary_lm$fit + 1.96*ordinary_lm$se.fit
+)
+
+# Add to 'ordinary_lm_list' (creating 'ordinary_lm_list2')
+ordinary_lm_list <- list(list(plot_data = ordinary_lm_plot_data))
+names(ordinary_lm_list) <- "No meas. error"
+result_me_list2 <- append(ordinary_lm_list, result_me_list)
+
+# Plot results
+lc_plot(sim$data, results = result_me_list2, facet = "wrap")
 
 
 #
-# Linear regression, actual data with proportional error (e.g. 20%) ----
+# Linear, actual data with proportional error (e.g. 20%) ----
 #
 
 # Get one station
@@ -211,10 +360,6 @@ results_error <- data.frame(
     data = map(error_percent, get_data),
     lc_result = map(data, lc_linear, measurement_error = "meas_error")
   )
-  
-  
-
-
 
 
 # Estimate regression for all error sizes  
@@ -254,47 +399,101 @@ result_me$dic
 
 
 #
-# Non-linear regression ----
+# Cubic splines, no measurement error  ----   
 #
 
-#
-# Test Qi version with simulated data ----   
-#
+# Cubic splines + Qi method version with simulated data
 
 #
 # Simulate strongly non-linear data
 #
-set.seed(991)
-X <- seq(from=-1, to=1, by=.025) # generating inputs
-B <- t(splines::bs(X, knots=seq(-1,1,1), degree=3, intercept = TRUE)) # creating the B-splines
-num_data <- length(X); num_basis <- nrow(B)
-a0 <- 0.2 # intercept
-a <- rnorm(num_basis, 0, 1) # coefficients of B-splines
-n_param <- length(a)
 
-Y_true <- as.vector(a0*X + a%*%B) # generating the output
-Y <- Y_true + rnorm(length(X),0,.1) # adding noise
+# Function for simulation
+lc_simulate_nonlin <- function(n = 50, n_knots = 4, linear_part = 0.2,
+                               constant = 2,
+                               sigma = 0.15, 
+                               censored_fraction = 0.25){
+  x <- seq(0, 10, length = n) # Sort as it makes the plotted lines neater
+  knots <- seq(0, 10, length = n_knots)
+  B <- t(splines::bs(x, knots=knots, degree=3, intercept = TRUE)) # creating the B-splines (dim 7 x 81)
+  num_data <- length(X)   # 81
+  num_basis <- nrow(B)    # 7
+  a0 <- linear_part # 'intercept'
+  a <- rnorm(num_basis, 0, 1) # coefficients of B-splines
+  Y_true <- as.vector(a0*x + a%*%B) + constant # generating the output
+  Y <- Y_true + rnorm(length(x), 0, sigma) # adding noise
+  dat_sim <- data.frame(x = x, y_uncensored = Y, y_true = Y_true)
+  censoring_limit <- quantile(Y, censored_fraction)
+  dat_sim %>%
+    mutate(
+      y = case_when(
+        y_uncensored >= censoring_limit ~ y_uncensored,
+        TRUE ~ as.numeric(NA)),
+      threshold = case_when(
+        y_uncensored < censoring_limit ~ y_uncensored,
+        TRUE ~ as.numeric(NA)),
+      uncensored = case_when(
+        y_uncensored >= censoring_limit ~ 1,
+        TRUE ~ 0)
+    )
+}
+# debugonce(lc_simulate_nonlin)
 
-dat_sim <- data.frame(x = X, y_uncensored = Y, y_true = Y_true)
-# ggplot(dat_sim, aes(x, y_uncensored)) +
-#   geom_point() +
-#   geom_line(aes(y = y_true), color = "blue")
+# Simulate data
+set.seed(13)
+dat_sim <- lc_simulate_nonlin(linear_part = 0)
 
-# Add censoring 
-dat_sim$y <- dat_sim$y_uncensored
-dat_sim$uncensored <- 1
-threshold_fixed <- -0.3
-sel <- dat_sim$y_uncensored < threshold_fixed
-dat_sim$y[sel] <- NA  
-dat_sim$uncensored[sel] <- 0  
-dat_sim$threshold <- threshold_fixed
+# Plot simulated data
+lc_plot(dat_sim, y_true = "y_true")
 
-# Plot
-lc_plot(dat_sim)
+# Estimate model
+result_5knots <- lc_fixedsplines(dat_sim, knots = 5)
+
+# Plot 
+lc_plot(dat_sim, 
+        y_true = "y_true", 
+        results = list(Nonlin_5knots = result_5knots))
+
+
 
 
 #
-# . fit models and test DIC values ----
+# Cubic splines, measurement error  ----   
+#
+
+dat_sim$meas_error <- 0.4
+
+# debugonce(lc_fixedsplines_qi_measerror)
+result_5knots_me <- lc_fixedsplines(dat_sim, knots = 5, measurement_error = "meas_error")
+
+lc_plot(dat_sim, 
+        y_true = "y_true", 
+        results = list(No_error = result_5knots,
+                       'Error = 0.4' = result_5knots_me), facet = "wrap")
+
+
+
+#
+# . no rows with censored data  ----   
+#
+
+# Simulate data
+set.seed(13)
+dat_sim_uncens <- lc_simulate_nonlin(linear_part = 0, censored_fraction = 0)
+dat_sim_uncens$meas_error <- 0.4
+# lc_plot(dat_sim)
+
+# debugonce(lc_fixedsplines_qi_measerror)
+result_5knots_me_uncens <- lc_fixedsplines(dat_sim_uncens, knots = 5, measurement_error = "meas_error")
+
+lc_plot(dat_sim, 
+        y_true = "y_true", 
+        results = result_5knots_me_uncens, facet = "wrap")
+
+
+
+#
+# Cubic splines, test DIC values ----
 #
 # Does work as expected
 #
@@ -326,6 +525,44 @@ lc_plot(dat_sim,
                        Nonlin_3knots = result_3knots_qi,
                        Nonlin_4knots = result_4knots_qi,
                        Nonlin_5knots = result_5knots_qi))
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Thin plate splines 
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# Simulate data
+set.seed(2) ## simulate some data... 
+n <- 400
+dat <- mgcv::gamSim(1,n=n,dist="normal",scale=2)  
+
+# we will use only x2 and y, and x2 is renamed 'x'
+dat <- dat[c("x2", "y")]
+names(dat)[1] <- "x"
+
+ggplot(dat, aes(x, y)) +
+  geom_point()
+
+# Here: fixed threshold (but that is not necessary)
+thresh <- 4
+dat_cens <- dat[c("x","y")]
+dat_cens$y_orig <- dat_cens$y       # original (will not be used)
+sel_uncens <- dat_cens$y > thresh
+dat_cens$y[!sel_uncens] <- NA
+dat_cens$cut <- thresh
+dat_cens$cut[sel_uncens] <- NA
+dat_cens$uncensored <- 0
+dat_cens$uncensored[sel_uncens] <- 1
+
+ggplot() +
+  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
+  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+
+load_all()
+# debugonce(lc_fixedsplines_tp)
+X <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut")
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
