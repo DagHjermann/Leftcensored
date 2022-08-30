@@ -5,6 +5,8 @@
 if (FALSE){
   library(devtools)
   load_all()
+  
+  # not needed for just running code below
   install()
 
   }
@@ -529,7 +531,7 @@ lc_plot(dat_sim,
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
-# Thin plate splines 
+# Thin plate splines ----
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
@@ -556,13 +558,31 @@ dat_cens$cut[sel_uncens] <- NA
 dat_cens$uncensored <- 0
 dat_cens$uncensored[sel_uncens] <- 1
 
+# Data
 ggplot() +
   geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
   geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
 
 load_all()
 # debugonce(lc_fixedsplines_tp)
-X <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut")
+
+# Test 
+res_k3 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                             normalize = TRUE, k = 3, raftery = TRUE)
+# returns close to a linear result in this case  
+
+res_k4 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                             normalize = TRUE, k = 4, raftery = TRUE)
+res_k5 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                             normalize = TRUE, k = 5, raftery = TRUE)
+
+ggplot() +
+  geom_ribbon(data = res_k3$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "blue", alpha = 0.5) +
+  geom_ribbon(data = res_k4$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "green", alpha = 0.5) +
+  geom_ribbon(data = res_k5$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "red", alpha = 0.5) +
+  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
+  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o

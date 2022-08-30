@@ -32,11 +32,15 @@ lc_fixedsplines_tp <- function(data,
                                normalize = TRUE,
                                make_data_only = FALSE,
                                initialize_only = FALSE,
+                               raftery = TRUE,
+                               keep_jags_model = FALSE,
+                               keep_mcmc_model = FALSE,
                                measurement_error = NULL){
   
   # Rename variables, reorder data and add 'y_comb'    
   dat_ordered1 <- get_dat_ordered1(
-    data = dat_test, x = "xx", y = "yx", uncensored = "uncensoredx", threshold = "cutx"
+    data = data, x = x, y = y, uncensored = uncensored, threshold = threshold,
+    measurement_error = measurement_error
   )
   
   # Make additional data that will be used only to make the fited line,
@@ -52,7 +56,7 @@ lc_fixedsplines_tp <- function(data,
     # mean_x <- mean(dat_ordered2$x, na.rm = TRUE)
     # sd_x <- sd(dat_ordered2$x, na.rm = TRUE)
     # norm_x <- function(x) (x-mean_x)/sd_x
-    # unnorm_x <- function(x) x*sd_x + mean_x
+    # denorm_x <- function(x) x*sd_x + mean_x
     
     # scale
     scale <- 10
@@ -61,12 +65,12 @@ lc_fixedsplines_tp <- function(data,
     min_x <- min(dat_ordered2$x, na.rm = TRUE)
     max_x <- max(dat_ordered2$x, na.rm = TRUE)
     norm_x <- function(x) (x-min_x)/(max_x-min_x)*scale
-    unnorm_x <- function(x) x*(max_x-min_x) + min_x/scale
+    denorm_x <- function(x) x*(max_x-min_x) + min_x/scale
     
     # y: standardization to max = scale 
     max_y <- max(dat_ordered2$y, na.rm = TRUE)
     norm_y <- function(y) y/max_y*scale
-    unnorm_y <- function(y) y*max_y/scale
+    denorm_y <- function(y) y*max_y/scale
     
     # Normalize x, y and y_comb   
     # norm <- normalize_lm(dat_ordered2$x, c(data_obs$y_comb, data_cen$cut))
@@ -74,16 +78,20 @@ lc_fixedsplines_tp <- function(data,
     dat_ordered2$y <- norm_y(dat_ordered2$y)
     dat_ordered2$y_comb <- norm_y(dat_ordered2$y_comb)
     dat_ordered2$cut <- norm_y(dat_ordered2$cut)
-    
+    if (!is.null(measurement_error))
+      dat_ordered2$meas_error <- norm_y(dat_ordered2$meas_error)
+
   }
   
-  jd_tp5_lc <- get_jagam_object(dat_ordered2, k = k)
+  jagam_object <- get_jagam_object(dat_ordered1, dat_ordered2, 
+                                   k = k, 
+                                   measurement_error = measurement_error)
   
   if (make_data_only){
     
     result <- list(
       data_for_analysis = dat_ordered2,
-      jagam_object= jd_tp5_lc)
+      jagam_object = jagam_object)
     
     
   } else if (!make_data_only & initialize_only){
@@ -92,47 +100,41 @@ lc_fixedsplines_tp <- function(data,
     # Fast check of whther the code is working  
     
     # Get JAGS code
-    jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored")
+    if (is.null(measurement_error)){
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored")
+    } else {
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored_measerror")
+    }
     
     jm <- rjags::jags.model(textConnection(jagscode_txt), 
-                            data=jd_tp5_lc$jags.data, 
-                            inits=jd_tp5_lc$jags.ini, 
-                            n.chains=2)  # changed from n.chains=1 
+                            data=jagam_object$jags.data, 
+                            inits=jagam_object$jags.ini, 
+                            n.chains=2)  # changed from n.chains=1   
     
     result <- list(
       data_for_analysis = dat_ordered2,
-      jagam_object= jd_tp5_lc,
+      jagam_object= jagam_object,
       jagscode_txt = jagscode_txt)
 
   } else if (!make_data_only & !initialize_only){
     
     # Get JAGS code
-    jagscode_txt <-  get_jags_model_code(bs = "tp", k = 5, type = "leftcensored")
-    
-    form <- as.formula(paste0("y_comb ~ s(x, bs='tp', k=", k, ")"))
-    
-    # Makes (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
-    # Make (2) jagam_object$jags.data (will be manipulated below)
-    jagam_object <- mgcv::jagam(gam_formula, 
-                                data = dat_ordered2,    # file no. 2 here
-                                file = jags.file,   # this file will be overwritten (was used as basis for "_leftcens" file)
-                                sp.prior = "gamma", 
-                                diagonalize = TRUE)
-    
-    # Modify jags.data object
-    n <- sum(dat_cens_ordered1$uncensored %in% 1)   # file no. 1 here 
-    m <- sum(dat_cens_ordered1$uncensored %in% 0)   # file no. 1 here
-    jagam_object$jags.data$n <- n   # - makes sure only these data are use for the likelihood
-    jagam_object$jags.data$m <- m   #    - " -
-    jagam_object$jags.data$Z <- c(rep(0,n), rep(1, m))
-    jagam_object$jags.data$cut <- dat_cens_ordered1$cut[dat_cens_ordered1$uncensored %in% 0]  # jags.file
-    
-    # jagam_object$jags.data
+    if (is.null(measurement_error)){
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored")
+    } else {
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored_measerror")
+    }
     
     # Choose the parameters to watch
     # Sample varaibles that have been inserted only to get the fitted line
     mu_fitted_names1 <- paste0("mu[", nrow(dat_cens_ordered1)+1, ":", nrow(dat_cens_ordered2), "]")
     mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_cens_ordered1)+1, nrow(dat_cens_ordered2)), "]")
+    
+    if (raftery){
+      raftery.options <- list()
+    } else {
+      raftery.options <- FALSE
+    }
     
     ### Run model
     # Initial run  
@@ -140,11 +142,15 @@ lc_fixedsplines_tp <- function(data,
       data = jagam_object$jags.data,
       monitor = model_parameters_for_convergence,     
       inits = jagam_object$jags.ini,
-      model = jags_code,
+      model = jagscode_txt,
       n.chains = n.chains,    # Number of different starting positions
       startsample = n.iter,   # Number of iterations
       startburnin = n.burnin, # Number of iterations to remove at start
-      thin = n.thin)          # Amount of thinning
+      thin = n.thin,          # Amount of thinning
+      raftery.options = raftery.options)
+    
+    # DIC
+    dic_list <- get_dic(model_result)
     
     # Add all model parameters and get samples for them
     model_result <- runjags::extend.jags(model_converged, 
@@ -157,27 +163,30 @@ lc_fixedsplines_tp <- function(data,
     summary <- summary(model_mcmc)
     quants <- summary$quantiles
     pick_rownames <- rownames(quants) %in% mu_fitted_names2
+    # Denormalize predicted data
+    denorm_med <- denorm_y(quants[pick_rownames,"50%"])
+    denorm_lo <- denorm_y(quants[pick_rownames,"2.5%"])
+    denorm_hi <- denorm_y(quants[pick_rownames,"97.5%"])
     # Make 'plot_data'  
-    # y and lower and upper CI  values are back-transformed (un-normalized) using unnorm:
+    # y and lower and upper CI  values are back-transformed (un-normalized) using denorm:
     plot_data <- data.frame(
       x = dat_for_fit$x, 
-      y = quants[pick_rownames,"50%"],
-      y_lo = quants[pick_rownames,"2.5%"],
-      y_hi = quants[pick_rownames,"97.5%"]  )
-    
+      y = denorm_med,
+      y_lo = denorm_lo,
+      y_hi = denorm_hi  
+      )
+
     result <- list(summary = summary,
                    plot_data = plot_data,
-                   mean_y = mean_y,
-                   sd_y = sd_y,
-                   norm_y = norm_y,
-                   dic_all = dic.pd,
-                   dic = dic,
-                   model_data = model_data)  
+                   dic = dic_list$dic,
+                   deviance = dic_list$deviance,
+                   pd = dic_list$pd,
+                   model_data = jagam_object$jags.data)  
     
-    if (keep_model)
-      result = append(result, list(model = model_mcmc))
-    if (keep_model_from_jags)
-      result = append(result, list(model_from_jags = model_result))
+    if (keep_jags_model)
+      result = append(result, list(model = model_result))
+    if (keep_mcmc_model)
+      result = append(result, list(model_from_jags = model_mcmc))
     
   }
   
@@ -188,9 +197,7 @@ lc_fixedsplines_tp <- function(data,
 
 
 
-
-
-get_jagam_object <- function(data, k = 5){
+get_jagam_object <- function(data_ordered1, data_ordered2, k = 5, measurement_error){
   
   jags.file <- paste0(tempdir(), "/temporary.jags") 
   
@@ -199,18 +206,21 @@ get_jagam_object <- function(data, k = 5){
   # Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
   # Make (2) jagam_object$jags.data (will be manpulated below)
   jagam_object <- jagam(gam_formula, 
-                        data = data,    # file no. 2 here
+                        data = data_ordered2,    # file no. 2 here
                         file = jags.file,   # this file will be overwritten (was used as basis for "_leftcens" file)
                         sp.prior = "gamma", 
                         diagonalize = TRUE)
   
   # Modify jags.data object
-  n <- sum(dat_ordered1$uncensored %in% 1)   # file no. 1 here 
-  m <- sum(dat_ordered1$uncensored %in% 0)   # file no. 1 here
+  n <- sum(data_ordered1$uncensored %in% 1)   # file no. 1 here 
+  m <- sum(data_ordered1$uncensored %in% 0)   # file no. 1 here
   jagam_object$jags.data$n <- n   # - makes sure only these data are use for the likelihood
   jagam_object$jags.data$m <- m   #    - " -
   jagam_object$jags.data$Z <- c(rep(0,n), rep(1, m))
-  jagam_object$jags.data$cut <- dat_ordered1$cut[dat_ordered1$uncensored %in% 0]
+  jagam_object$jags.data$cut <- data_ordered1$cut[data_ordered1$uncensored %in% 0]
+  
+  if (!is.null(measurement_error))
+    jagam_object$jags.data$meas_error <- data_ordered1$meas_error[data_ordered1$uncensored %in% 1]
   
   jagam_object
   

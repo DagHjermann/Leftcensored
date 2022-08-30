@@ -1,11 +1,11 @@
 
-#
-# Models without measurement error ----
-#
-
 get_jags_model_code <- function(bs = "tp",
                                 k = 5,
                                 type = "leftcensored"){
+  
+  #
+  # Models without measurement error ----
+  #
   
   if (bs == "tp" & k == 3 & type == "leftcensored"){
     
@@ -81,28 +81,19 @@ model {
 }
 '
 
-  } else {
-    
-    stop("The given combination of bs = ", sQuote(bs), ", k = ", k, ", and type = ", sQuote(type),
-         " has not been implemented.")
-    
-  }
-
-code
-
-}
-
 #
 # Models with measurement error ----
 #
 
-model_tp_k3_leftcensored_measerror = '
+} else if (bs == "tp" & k == 3 & type == "leftcensored_measerror"){
+  
+  code <- '
 model {
   mu <- X %*% b ## expected response
   for (i in 1:n) { 
-    y[i] ~ dnorm(mu[i], total_var[n+j]^-1) 
-    total_var[i] <- scale^2 + scale_meas[i]^2
-    } ## response 
+    y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
+    total_var[i] <- scale^2 + meas_error[i]^2
+    }  
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
     prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
@@ -122,10 +113,15 @@ model {
 }
 '
 
-model_tp_k4_leftcensored_measerror = '
+} else if (bs == "tp" & k == 4 & type == "leftcensored_measerror"){
+  
+  code <- '
 model {
   mu <- X %*% b ## expected response
-  for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
+  for (i in 1:n) { 
+    y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
+    total_var[i] <- scale^2 + meas_error[i]^2
+    }  
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
     prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
@@ -145,10 +141,15 @@ model {
 }
 '
 
-model_tp_k5_leftcensored_measerror = '
+  } else if (bs == "tp" & k == 5 & type == "leftcensored_measerror"){
+    
+    code <- '
 model {
   mu <- X %*% b ## expected response
-  for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
+  for (i in 1:n) { 
+    y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
+    total_var[i] <- scale^2 + meas_error[i]^2
+    }  
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
     prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
@@ -167,4 +168,16 @@ model {
   }
 }
 '
+
+  } else {
+    
+    stop("The given combination of bs = ", sQuote(bs), ", k = ", k, ", and type = ", sQuote(type),
+         " has not been implemented.")
+    
+  }
+
+code
+
+}
+
 
