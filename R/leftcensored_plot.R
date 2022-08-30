@@ -66,10 +66,12 @@ lc_plot <- function(data,
                     results = NULL,
                     y_true = NULL,
                     facet = NULL){
-  data$x <- data[[x]]
-  data$y <- data[[y]]
-  data$uncensored <- data[[uncensored]]
-  data$threshold <- data[[threshold]]
+  
+  data <- rename_check(x, "x")
+  data <- rename_check(y, "y")
+  data <- rename_check(uncensored, "uncensored")
+  data <- rename_check(threshold, "threshold")
+
   gg <- ggplot(data, aes(x, y))
   if (!is.null(results)){
     if (is.data.frame(results$plot_data)){
