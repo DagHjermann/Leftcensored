@@ -52,7 +52,7 @@ get_dat_ordered1 <- function(data,
   
 }
 
-get_dat_ordered2 <- function(data_ordered, fit_length){
+get_ordered_data2 <- function(data_ordered, fit_length){
   
   #
   # Make x data that will be used for making the fitted line + conf.int.
@@ -75,9 +75,37 @@ get_dat_ordered2 <- function(data_ordered, fit_length){
   #
   # dat_ordered1 = data file
   # dat_ordered2 = with addition for daa for fitted line (3o points)
-  bind_rows(
-    data_ordered,
-    dat_for_fit
+  
+  list(
+    data = bind_rows(data_ordered, dat_for_fit),
+    data_for_fit = dat_for_fit
   )
   
+}
+
+get_dic <- function(runjags_object){
+  
+  #
+  # DIC
+  #
+  dic.pd <- rjags::dic.samples(model = runjags::as.jags(runjags_object), n.iter=1000, type="pD")
+  
+  # Not used now:
+  # dic.popt <- dic.samples(model=model_run, n.iter=30000, type="popt"); dic.popt
+  
+  # Select the observations for which we got penalties
+  dic.sel.pd <- !is.nan(dic.pd$penalty )
+  
+  # Get penalties and deviances for those
+  pd <- dic.pd$penalty[dic.sel.pd]
+  deviance <- dic.pd$deviance[dic.sel.pd]
+  
+  # Calculate DIC
+  dic <- sum(deviance) + sum(pd)
+  
+  list(
+    deviance = deviance,
+    pd = pd,
+    dic = dic)
+
 }

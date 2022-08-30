@@ -38,14 +38,15 @@ lc_fixedsplines_tp <- function(data,
                                measurement_error = NULL){
   
   # Rename variables, reorder data and add 'y_comb'    
-  dat_ordered1 <- get_dat_ordered1(
+  dat_ordered1 <- get_ordered_data1(
     data = data, x = x, y = y, uncensored = uncensored, threshold = threshold,
     measurement_error = measurement_error
   )
   
   # Make additional data that will be used only to make the fited line,
   #  and add them to the data  
-  dat_ordered2 <- get_dat_ordered2(dat_ordered1, fit_length = resolution)
+  dat_ordered2_list <- get_ordered_data2(dat_ordered1, fit_length = resolution)
+  dat_ordered2 <- dat_ordered2_list$data
   
   #
   # For standardiztion
@@ -124,8 +125,8 @@ lc_fixedsplines_tp <- function(data,
     
     # Choose the parameters to watch
     # Sample varaibles that have been inserted only to get the fitted line
-    mu_fitted_names1 <- paste0("mu[", nrow(dat_cens_ordered1)+1, ":", nrow(dat_cens_ordered2), "]")
-    mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_cens_ordered1)+1, nrow(dat_cens_ordered2)), "]")
+    mu_fitted_names1 <- paste0("mu[", nrow(dat_ordered1)+1, ":", nrow(dat_ordered2), "]")
+    mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_ordered1)+1, nrow(dat_ordered2)), "]")
     
     if (raftery){
       raftery.options <- list()
@@ -147,7 +148,7 @@ lc_fixedsplines_tp <- function(data,
       raftery.options = raftery.options)
     
     # DIC
-    dic_list <- get_dic(model_result)
+    dic_list <- get_dic(model_converged)
     
     # Add all model parameters and get samples for them
     model_result <- runjags::extend.jags(model_converged, 
@@ -175,7 +176,7 @@ lc_fixedsplines_tp <- function(data,
     # Make 'plot_data'  
     # y and lower and upper CI  values are back-transformed (un-normalized) using denorm:
     plot_data <- data.frame(
-      x = dat_for_fit$x, 
+      x = dat_ordered2_list$data_for_fit$x, 
       y = y_med,
       y_lo = y_lo,
       y_hi = y_hi  
@@ -210,7 +211,7 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k = 5, measurement_er
 
   # Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
   # Make (2) jagam_object$jags.data (will be manpulated below)
-  jagam_object <- jagam(gam_formula, 
+  jagam_object <- mgcv::jagam(gam_formula, 
                         data = data_ordered2,    # file no. 2 here
                         file = jags.file,   # this file will be overwritten (was used as basis for "_leftcens" file)
                         sp.prior = "gamma", 
