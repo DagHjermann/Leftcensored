@@ -47,30 +47,27 @@ lc_fixedsplines_tp <- function(data,
   #  and add them to the data  
   dat_ordered2 <- get_dat_ordered2(dat_ordered1, fit_length = resolution)
   
+  #
+  # For standardiztion
+  #
+  
+  # scale
+  scale <- 10
+  
+  # x: standardization to min = 0 and max = scale 
+  min_x <- min(dat_ordered2$x, na.rm = TRUE)
+  max_x <- max(dat_ordered2$x, na.rm = TRUE)
+  norm_x <- function(x) (x-min_x)/(max_x-min_x)*scale
+  denorm_x <- function(x) x*(max_x-min_x) + min_x/scale
+  
+  # y: standardization to max = scale 
+  max_y <- max(dat_ordered2$y, na.rm = TRUE)
+  norm_y <- function(y) y/max_y*scale
+  denorm_y <- function(y) y*max_y/scale
   
   # Normalize data
   # Achieves mean = 0
   if (normalize){
-    
-    # Standardization to mean = 0 and sd = 1 
-    # mean_x <- mean(dat_ordered2$x, na.rm = TRUE)
-    # sd_x <- sd(dat_ordered2$x, na.rm = TRUE)
-    # norm_x <- function(x) (x-mean_x)/sd_x
-    # denorm_x <- function(x) x*sd_x + mean_x
-    
-    # scale
-    scale <- 10
-    
-    # x: standardization to min = 0 and max = scale 
-    min_x <- min(dat_ordered2$x, na.rm = TRUE)
-    max_x <- max(dat_ordered2$x, na.rm = TRUE)
-    norm_x <- function(x) (x-min_x)/(max_x-min_x)*scale
-    denorm_x <- function(x) x*(max_x-min_x) + min_x/scale
-    
-    # y: standardization to max = scale 
-    max_y <- max(dat_ordered2$y, na.rm = TRUE)
-    norm_y <- function(y) y/max_y*scale
-    denorm_y <- function(y) y*max_y/scale
     
     # Normalize x, y and y_comb   
     # norm <- normalize_lm(dat_ordered2$x, c(data_obs$y_comb, data_cen$cut))
@@ -155,7 +152,7 @@ lc_fixedsplines_tp <- function(data,
     # Add all model parameters and get samples for them
     model_result <- runjags::extend.jags(model_converged, 
                                          add.monitor = mu_fitted_names1,
-                                         sample = n.iter)
+                                         sample = 2000)
     
     # model_result
     model_mcmc <- coda::as.mcmc(model_result)
@@ -163,17 +160,25 @@ lc_fixedsplines_tp <- function(data,
     summary <- summary(model_mcmc)
     quants <- summary$quantiles
     pick_rownames <- rownames(quants) %in% mu_fitted_names2
-    # Denormalize predicted data
-    denorm_med <- denorm_y(quants[pick_rownames,"50%"])
-    denorm_lo <- denorm_y(quants[pick_rownames,"2.5%"])
-    denorm_hi <- denorm_y(quants[pick_rownames,"97.5%"])
+    
+    if (normalize){
+      # Denormalize predicted data
+      y_med <- denorm_y(quants[pick_rownames,"50%"])
+      y_lo <- denorm_y(quants[pick_rownames,"2.5%"])
+      y_hi <- denorm_y(quants[pick_rownames,"97.5%"])
+    } else {
+      y_med <- quants[pick_rownames,"50%"]
+      y_lo <- quants[pick_rownames,"2.5%"]
+      y_hi <- quants[pick_rownames,"97.5%"]
+    }
+    
     # Make 'plot_data'  
     # y and lower and upper CI  values are back-transformed (un-normalized) using denorm:
     plot_data <- data.frame(
       x = dat_for_fit$x, 
-      y = denorm_med,
-      y_lo = denorm_lo,
-      y_hi = denorm_hi  
+      y = y_med,
+      y_lo = y_lo,
+      y_hi = y_hi  
       )
 
     result <- list(summary = summary,
