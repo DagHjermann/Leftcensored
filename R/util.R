@@ -12,16 +12,20 @@ rename_check <- function(data, old, new){
 
 
 # Get ordered data
-get_dat_ordered1 <- function(data,
+get_ordered_data1 <- function(data,
                              x = "x", 
                              y = "y", 
                              uncensored = "uncensored",
-                             threshold = "threshold"){
-  
+                             threshold = "threshold",
+                             measurement_error = NULL){
+  # browser()
   data <- rename_check(data, x, "x")
   data <- rename_check(data, y, "y")
   data <- rename_check(data, uncensored, "uncensored")
   data <- rename_check(data, threshold, "cut")
+  
+  if (!is.null(measurement_error))
+    data <- rename_check(data, measurement_error, "meas_error")
   
   # If uncensored = FALSE/TRUE, change it to 0/1 
   data$uncensored <- as.numeric(data$uncensored)
