@@ -4,7 +4,7 @@ An R package for linear or non-linear regression analysis of left-censored data 
   
 Specifications:  
 
-- The package currently does only regression with one response variable depending on one predictor variable (both continuous), and where the error is normally distributed. I.e., models on the form   
+- The package is fairly limited in scope and does only regression with one response variable depending on one predictor variable (both continuous), and where the error is normally distributed. I.e., models on the form   
 ```
 y = F(x) + error  
 ```
@@ -14,6 +14,7 @@ y = F(x) + error
 - The user can specify a measurement error in y; this error can also either be constanct or vary between observations   
 - Parameter estimation is done using Bayesian methodology (Markov Chain Monte Carlo) with non-informative prior distributions  
 - The method of Qi et al. (2022) is the basis for parameter estimation, and the method also returns the DIC (Deviance information criterion) for models to aid model selection between e.g. linear and non-linear models   
+- To minimize convergence problems, data are automatically normalized to mean = 0 and s.d. = 1 before fitting and back-transformed after fitting.  
 
 Future developments:  
 
@@ -46,14 +47,26 @@ Files and functions:
     - lc_linear_qi  
     - lc_linear_qi_uncens   
     
+- `leftcensored_fixedsplines.R`     
+    - lc_splines  
+    
 - `leftcensored_fixedsplines_tp.R`     
     - lc_fixedsplines_tp  
     - get_jags_model_code      
     
 - `leftcensored_fixedsplines_qi.R`     
-    - lc_fixedsplines_tp  
+    - lc_fixedsplines_cr  
+    - lc_fixedsplines_cr_measerror  
+    - lc_fixedsplines_cr_measerror_uncens  
 
+- `leftcensored_fixedsplines_dinterval.R`     
+    - lc_fixedsplines_dinterval  
+
+- `leftcensored_simulate.R`     
+    - lc_simulate  
     
+
+
 
 
     
