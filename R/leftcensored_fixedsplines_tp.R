@@ -88,7 +88,7 @@ lc_fixedsplines_tp <- function(data,
 
   }
   
-  jagam_object <- get_jagam_object(dat_ordered1, dat_ordered2, 
+  jagam_object <- leftcensored::get_jagam_object(dat_ordered1, dat_ordered2, 
                                    k_jagam = k_jagam, 
                                    measurement_error = measurement_error,
                                    k_orig = k)
@@ -107,9 +107,9 @@ lc_fixedsplines_tp <- function(data,
     
     # Get JAGS code
     if (is.null(measurement_error)){
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored")
+      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored")
     } else {
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored_measerror")
+      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored_measerror")
     }
     
     jm <- rjags::jags.model(textConnection(jagscode_txt), 
@@ -126,9 +126,9 @@ lc_fixedsplines_tp <- function(data,
     
     # Get JAGS code
     if (is.null(measurement_error)){
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored")
+      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored")
     } else {
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored_measerror")
+      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored_measerror")
     }
     
     # Choose the parameters to watch
