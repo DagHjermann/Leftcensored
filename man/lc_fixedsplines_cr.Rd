@@ -2,7 +2,7 @@
 % Please edit documentation in R/leftcensored_fixedsplines_qi.R
 \name{lc_fixedsplines_cr}
 \alias{lc_fixedsplines_cr}
-\title{Linear regression for left-censored data}
+\title{Cubic regression spline for left-censored data}
 \usage{
 lc_fixedsplines_cr(
   data,
@@ -60,7 +60,7 @@ It is an MCMC object, which has methods for functions such as plot (see ?mcmc). 
 state-space models, this can be used for diagnostic plots of the model. See examples.
 }
 \description{
-This function runs spline regression (with fixed number and placement of knots) when the dependent
+These function runs spline regression (with fixed number and placement of knots) when the dependent
 (y) variable is left-censored. That is, if the actual value is below some below some limit
 of quantification, LOQ, we we cannot measure it. We only know that the actual value is
 somewhere below LOQ. If the data are given as typical chemical measurements with one column

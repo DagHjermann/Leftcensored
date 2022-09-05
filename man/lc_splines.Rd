@@ -2,7 +2,7 @@
 % Please edit documentation in R/leftcensored_fixedsplines.R
 \name{lc_splines}
 \alias{lc_splines}
-\title{Linear regression for left-censored data}
+\title{Spline regression for left-censored data}
 \usage{
 lc_splines(
   data,

@@ -53,6 +53,12 @@ plot(b0)
 # edit(file = jags.file)
 
 
+debugonce(gam)
+b0 <- gam(y ~ s(x2), data=dat, method="REML")
+AIC(b0)
+blin <- gam(y ~ x2,data=dat, method="REML")
+AIC(blin)
+
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # Testing jagam ----
@@ -71,6 +77,7 @@ jd <- jagam(y ~ s(x2, bs="cr"), data=dat,file=jags.file_cr,
 
 
 jags.file <- paste("C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp_orig.txt") 
+debugonce(jagam)
 jd <- jagam(y ~ s(x2, bs="tp"), data=dat,file=jags.file,
             sp.prior="gamma", diagonalize=TRUE)
 
@@ -84,6 +91,11 @@ jd <- jagam(y ~ s(x2, bs="tp"), data=dat,file=jags.file,
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 jags.file <- paste("C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tpX_orig.txt") 
+jags.file <- paste("C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tpX_orig.txt") 
+
+jags.file_tp3 <- sub("X", k, jags.file)
+jd_tp3 <- jagam(y ~ x2, data=dat, file = sub("tpX", "lin", jags.file),
+                sp.prior="gamma", diagonalize=TRUE)
 
 k <- 3
 jags.file_tp3 <- sub("X", k, jags.file)
@@ -606,15 +618,22 @@ q_tp5 <- summary(model_mcmc)$quantiles
 #
 # Left-censored, final version ---- 
 #
-# Start with n objects in memory  
+# Start with no objects in memory  
 # Strategy, see "working version"  
 #
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+library(mgcv)
+library(purrr)
+library(dplyr)
+library(ggplot2)
+library(runjags)
+
 
 # Simulate data
 set.seed(2) ## simulate some data... 
 n <- 400
-dat <- gamSim(1,n=n,dist="normal",scale=2)  
+dat <- mgcv::gamSim(1,n=n,dist="normal",scale=2)  
 
 # we will use only x2 and y, and x2 is renamed 'x'
 dat <- dat[c("x2", "y")]
@@ -639,10 +658,11 @@ dat_cens$uncensored <- 0
 dat_cens$uncensored[sel_uncens] <- 1
 
 # Order file with uncensored data first
-dat_cens_ordered1 <- bind_rows(
+dat_ordered1 <- bind_rows(
   dat_cens[sel_uncens,],
   dat_cens[!sel_uncens,]
 )
+
 # y_comb is the combination of y and cut
 # - will be used as the response in the analysis
 # - will only affect the uncensored values
@@ -802,6 +822,160 @@ ggplot(plot_data, aes(x))+
 get_dic(jm)
 
 effectiveSize(as.mcmc.list(sam_fit[[mu_fitted_names1]]))
+
+#
+# With functions ----
+#
+
+
+# Simulate data
+set.seed(2) ## simulate some data... 
+n <- 400
+dat <- mgcv::gamSim(1,n=n,dist="normal",scale=2)  
+
+# we will use only x2 and y, and x2 is renamed 'x'
+dat <- dat[c("x2", "y")]
+names(dat)[1] <- "x"
+
+#
+# Create censored data
+#
+
+# Here: fixed threshold (but that is not necessary)
+thresh <- 4
+dat_cens <- dat[c("x","y")]
+dat_cens$y_orig <- dat_cens$y       # original (will not be used)
+sel_uncens <- dat_cens$y > thresh
+dat_cens$y[!sel_uncens] <- NA
+dat_cens$cut <- thresh
+dat_cens$cut[sel_uncens] <- NA
+dat_cens$uncensored <- 0
+dat_cens$uncensored[sel_uncens] <- 1
+
+# Rename columns and shuffle rows  
+dat_test <- dat_cens[c(1,2,4,5)]
+names(dat_test) <- c("xx", "yx", "cutx", "uncensoredx")
+dat_test <- dat_test[sample(1:nrow(dat_test)),]
+
+ggplot(dat_test, aes(xx, yx)) +
+  geom_point() +
+  geom_point(data = subset(dat_test, uncensoredx == 0), aes(y = cutx), shape = 6)
+
+# Use get_dat_ordered1
+dat_ordered1 <- get_dat_ordered1(
+  data = dat_test, x = "xx", y = "yx", uncensored = "uncensoredx", threshold = "cutx"
+)
+
+# Model file that will be used for left-censored analysis
+# (made based on the 'orig' model)
+jags.file_tp5_lc <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens.txt"
+# Model file that will be made by 'jagam'  
+jags.file_tp5_orig <-  "C:/Data/R_test/84_mgcv_jagam/84_jagsmodel_tp5_leftcens_orig.txt"
+
+# Use get_dat_ordered2
+dat_ordered2 <- get_dat_ordered2(dat_ordered1, fit_length = 30)
+
+nrow(dat_ordered1)
+nrow(dat_ordered2)
+
+jd_tp5_lc <- get_jagam_object(dat_ordered2)
+jd_tp5_lc <- X1b
+
+str(jd_tp5_lc$jags.data)
+
+jagscode_txt <-  get_jags_model_code(bs = "tp", k = 5, type = "leftcensored")
+
+# . run model - alt. 1 ----
+jagscode_txt <-  get_jags_model_code(bs = "tp", k = 5, type = "leftcensored")
+jm <- rjags::jags.model(textConnection(jagscode_txt), 
+                        data=jd_tp5_lc$jags.data, 
+                        inits=jd_tp5_lc$jags.ini, 
+                        n.chains=2)  # changed from n.chains=1 
+
+# debugonce(lc_fixedsplines_tp)
+X1 <- lc_fixedsplines_tp(data = dat_test, x = "xx", y = "yx", 
+                         uncensored = "uncensoredx", threshold = "cutx", normalize = FALSE)
+
+load_all()
+X1b <- lc_fixedsplines_tp(data = dat_test, x = "xx", y = "yx", 
+                         uncensored = "uncensoredx", threshold = "cutx", normalize = TRUE)
+X2 <- get_jagam_object(dat_ordered2)
+str(X1, 1)
+str(X2, 1)
+str(X1$jags.data, 1)
+str(X1b$jags.data, 1)
+str(X2$jags.data, 1)
+
+table(X1$jags.data$Z)
+table(X1b$jags.data$Z)
+table(X1$jags.data$cut)
+table(X1b$jags.data$cut)
+head(X1$jags.data$X)
+head(X1b$jags.data$X)
+
+X1$jags.data$n
+X1$jags.data$y
+
+lc_fixedsplines_tp(data = dat_test, x = "xx", y = "yx", 
+                         uncensored = "uncensoredx", threshold = "cutx", normalize = FALSE)
+lc_fixedsplines_tp(data = dat_test, x = "xx", y = "yx", 
+                   uncensored = "uncensoredx", threshold = "cutx", normalize = TRUE)
+
+
+#
+# . run model - alt. 2 ---- 
+# Using runjags::autorun.jags
+#
+
+# Choose the parameters to watch
+model_parameters_for_convergence <- c("b","rho","lambda","scale")
+# Sample varaibles that have been inserted only to get the fitted line
+mu_fitted_names1 <- paste0("mu[", nrow(dat_ordered1)+1, ":", nrow(dat_ordered2), "]")
+mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_ordered1)+1, nrow(dat_ordered2)), "]")
+
+n.burnin <- 4000
+n.thin <- 2
+n.iter <- 4000
+
+### Run model
+# Initial run  
+model_converged <- runjags::autorun.jags(
+  data = jd_tp5_lc$jags.data,
+  monitor = model_parameters_for_convergence,     
+  inits = jd_tp5_lc$jags.ini,
+  model = jags.file_tp5_lc,
+  n.chains = 2,    # Number of different starting positions
+  startsample = 4000,     # Number of iterations
+  startburnin = n.burnin, # Number of iterations to remove at start
+  thin = n.thin)          # Amount of thinning
+
+# Add all model parameters and get samples for them
+model_result <- runjags::extend.jags(model_converged, 
+                                     add.monitor = mu_fitted_names1,
+                                     sample = n.iter)
+
+# model_result
+model_mcmc <- coda::as.mcmc(model_result)
+
+summary <- summary(model_mcmc)
+quants <- summary$quantiles
+pick_rownames <- rownames(quants) %in% mu_fitted_names2
+# Make 'plot_data'  
+# y and lower and upper CI  values are back-transformed (un-normalized) using unnorm:
+plot_data <- data.frame(
+  x = dat_for_fit$x, 
+  y = quants[pick_rownames,"50%"],
+  y_lo = quants[pick_rownames,"2.5%"],
+  y_hi = quants[pick_rownames,"97.5%"]  )
+
+ggplot(plot_data, aes(x))+
+  geom_ribbon(aes(ymin = y_lo, ymax = y_hi), fill = "lightblue") +
+  geom_line(aes(y = y)) +
+  geom_point(data = dat_ordered1, aes(x, y)) +
+  geom_point(data = dat_ordered1, aes(x, cut), shape = 6)
+# Worked :-)
+
+
 
 
 # 

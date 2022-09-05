@@ -53,6 +53,7 @@ Files and functions:
 - `leftcensored_fixedsplines_tp.R`     
     - lc_fixedsplines_tp  
     - get_jags_model_code      
+- `jags_model_code.R`     
     
 - `leftcensored_fixedsplines_qi.R`     
     - lc_fixedsplines_cr  

@@ -18,6 +18,9 @@ get_ordered_data1 <- function(data,
                              uncensored = "uncensored",
                              threshold = "threshold",
                              measurement_error = NULL){
+  
+  data <- as.data.frame(data)
+  
   # browser()
   data <- rename_check(data, x, "x")
   data <- rename_check(data, y, "y")
@@ -38,19 +41,29 @@ get_ordered_data1 <- function(data,
   if (n2 < n1)
     warning("Note: ", n1-n2, " rows deleted because they had no accepted value for 'uncensored' (", sQuote(uncensored), ")")
   
-  # Set all censored data to NA (if not already done)
-  data$y[data$uncensored == 0] <- NA
-  
-  # Order file with uncensored data first
-  result <- bind_rows(
-    data[data$uncensored == 1,],
-    data[data$uncensored == 0,]
-  )
-  # y_comb is the combination of y and cut
-  # - will be used as the response in the analysis
-  # - will only affect the uncensored values
-  result$y_comb <- c(data[data$uncensored == 1, "y"], 
-                     data[data$uncensored == 0, "cut"])
+  if (sum(data$uncensored == 0) > 0){
+    
+    # Set all censored data to NA (if not already done)
+    data$y[data$uncensored == 0] <- NA
+    
+    # Order file with uncensored data first
+    result <- bind_rows(
+      data[data$uncensored == 1,],
+      data[data$uncensored == 0,]
+    )
+    # y_comb is the combination of y and cut
+    # - will be used as the response in the analysis
+    # - will only affect the uncensored values
+    result$y_comb <- c(data[data$uncensored == 1, "y"], 
+                       data[data$uncensored == 0, "cut"])
+    
+  } else {
+    
+    # If no uncensored data
+    result <- data
+    result$y_comb <- data$y
+    
+  }
   
   result
   
