@@ -67,10 +67,10 @@ lc_plot <- function(data,
                     y_true = NULL,
                     facet = NULL){
   
-  data <- rename_check(x, "x")
-  data <- rename_check(y, "y")
-  data <- rename_check(uncensored, "uncensored")
-  data <- rename_check(threshold, "threshold")
+  data <- rename_check(data, x, "x")
+  data <- rename_check(data, y, "y")
+  data <- rename_check(data, uncensored, "uncensored")
+  data <- rename_check(data, threshold, "threshold")
 
   gg <- ggplot(data, aes(x, y))
   if (!is.null(results)){
