@@ -90,6 +90,8 @@ sim <- lc_simulate(n = 30)   # also plots the data
 sim$data$meas_error <- 5
 result_me <- lc_linear(sim$data, measurement_error = "meas_error")
 
+
+
 # Get best estimate fitted line       
 a <- result_me$intercept["50%"]
 b <- result_me$slope["50%"]
@@ -399,10 +401,549 @@ lines(y_hi ~ x, data = result_me$plot_data, lty = "dashed", col = "purple")
 result_me$dic
 
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Thin plate splines ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
+#
+# . simulate data ----
+#
+set.seed(2) ## simulate some data... 
+n <- 50
+dat <- mgcv::gamSim(1,n=n,dist="normal",scale=1)  
+
+# we will use only x2 and y, and x2 is renamed 'x'
+dat <- dat[c("x2", "y")]
+names(dat)[1] <- "x"
+
+ggplot(dat, aes(x, y)) +
+  geom_point()
+
+# Here: fixed threshold (but that is not necessary)
+thresh <- 4
+dat_cens <- dat[c("x","y")]
+dat_cens$y_orig <- dat_cens$y       # original (will not be used)
+sel_uncens <- dat_cens$y > thresh
+dat_cens$y[!sel_uncens] <- NA
+dat_cens$cut <- thresh
+dat_cens$cut[sel_uncens] <- NA
+dat_cens$uncensored <- 0
+dat_cens$uncensored[sel_uncens] <- 1
+
+# Data
+ggplot() +
+  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
+  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+
+load_all()
+
+#
+# . quick tests ----
+#
+
+# Quick test that JAGS runs
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                           normalize = TRUE, k = 3, initialize_only = TRUE)
+
+
+# Quick test that JAGS runs with measurement error
+dat_cens$error <- 1
+
+ggplot() +
+  geom_pointrange(data = dat_cens[sel_uncens,], aes(x = x, y = y, ymin = y-error, ymax = y+error)) +
+  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+
+
+test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                           measurement_error = "error", 
+                           normalize = TRUE, k = 5, initialize_only = TRUE)
+
+#
+# . full tests, no measurement error ----
+#
+
+# Test without measurement error
+
+k_values <- 2:7
+results <- purrr::map(2:7, 
+                      ~lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                          normalize = TRUE, k = .x, raftery = TRUE)
+)
+results <- purrr::map(2:7, 
+                      ~lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                          normalize = TRUE, k = .x, raftery = FALSE)
+)
+
+names(results) <- paste("k =", k_values)
+
+
+# Plot
+lc_plot(dat_cens, threshold = "cut", results = results, facet = "wrap")
+
+# DIC
+purrr::map_dbl(results, "dic")
+plot(k_values, purrr::map_dbl(results, "dic"), type = "b")
+
+#
+# . full tests, with measurement error ----
+#
+
+
+results_me <- purrr::map(k_values, 
+                         ~lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                             normalize = TRUE, k = .x, raftery = FALSE, measurement_error = "error")
+)
+names(results_me) <- paste("k =", k_values)
+
+# Plot
+lc_plot(dat_cens, threshold = "cut", results = results_me, facet = "wrap")
+
+dic2 <- purrr::map_dbl(results_me, "dic")
+plot(k_values, dic2, type = "b")
+
+purrr::map_dbl(results_me, ~sum(.x$pd))
+purrr::map_dbl(results_me, ~sum(.x$deviance))
+
+# Compare DIC with and without measurement error  
+dic1 <- purrr::map_dbl(results, "dic")
+dic2 <- purrr::map_dbl(results_me, "dic")
+plot(k_values, dic1, type = "b", ylim = range(dic1, dic2))
+lines(k_values, dic2, type = "b", pch = 19)
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Thin plate splines, no censoring ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+#
+# . simulate data ----
+#
+set.seed(2) ## simulate some data... 
+n <- 50
+dat <- mgcv::gamSim(1,n=n,dist="normal",scale=1)  
+
+# we will use only x2 and y, and x2 is renamed 'x'
+dat_uncens <- dat[c("x2", "y")]
+names(dat_uncens)[1] <- "x"
+
+dat_uncens$cut <- NA
+dat_uncens$uncensored <- 1
+
+ggplot(dat_uncens, aes(x, y)) +
+  geom_point()
+
+load_all()
+
+#
+# . quick tests ----
+#
+
+# Quick test for making data
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                           normalize = TRUE, k = 3, make_data_only = TRUE)
+
+str(test, 1)
+str(test$jagam_object$jags.data, 1)
+
+# Quick test that JAGS runs
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                           normalize = TRUE, k = 3, initialize_only = TRUE)
+
+# Quick test that JAGS works
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                           normalize = TRUE, k = 3, raftery = FALSE)
+
+# Plot
+lc_plot(dat_uncens, threshold = "cut", results = test, facet = "wrap")
+
+# Quick test that JAGS runs with measurement error
+dat_uncens$error <- 1
+
+ggplot() +
+  geom_pointrange(data = dat_uncens[sel_uncens,], aes(x = x, y = y, ymin = y-error, ymax = y+error))
+
+
+test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                           measurement_error = "error", 
+                           normalize = TRUE, k = 5, initialize_only = TRUE)
+
+
+#
+# . full tests, no measurement error ----
+#
+
+# Test without measurement error
+
+k_values <- 2:7
+results <- purrr::map(2:7, 
+                      ~lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                          normalize = TRUE, k = .x, raftery = FALSE)
+)
+
+names(results) <- paste("k =", k_values)
+
+
+# Plot
+lc_plot(dat_uncens, threshold = "cut", results = results, facet = "wrap")
+
+# DIC
+purrr::map_dbl(results, "dic")
+plot(k_values, purrr::map_dbl(results, "dic"), type = "b")
+
+#
+# . full tests, with measurement error ----
+#
+
+
+results_me <- purrr::map(k_values, 
+                         ~lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                             normalize = TRUE, k = .x, raftery = FALSE, measurement_error = "error")
+)
+names(results_me) <- paste("k =", k_values)
+
+# Plot
+lc_plot(dat_uncens, threshold = "cut", results = results_me, facet = "wrap")
+
+dic2 <- purrr::map_dbl(results_me, "dic")
+plot(k_values, dic2, type = "b")
+
+purrr::map_dbl(results_me, ~sum(.x$pd))
+purrr::map_dbl(results_me, ~sum(.x$deviance))
+
+# Compare DIC with and without measurement error  
+dic1 <- purrr::map_dbl(results, "dic")
+dic2 <- purrr::map_dbl(results_me, "dic")
+plot(k_values, dic1, type = "b", ylim = range(dic1, dic2))
+lines(k_values, dic2, type = "b", pch = 19)
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Parallel processing using furrr ----
+#
+# Using thin-plate splines
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# install.packages("furrr")
+library(furrr)
+
+# Check number cores
+future::availableCores()
+
+# Set a "plan" for how many cores to use:
+plan(multisession, workers = 6)
+
+
+results_me <- future_map(k_values, 
+                         ~leftcensored::lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                             normalize = TRUE, k = .x, raftery = TRUE, measurement_error = "error")
+)
+
+## Explicitly close multisession workers by switching plan
+plan(sequential)
+
+
+
+
+library(doParallel)
+cl <- makeCluster(6)
+registerDoParallel(cores = 6)
+
+my_data <- iris[which(iris[,5] != "setosa"), c(1,5)]
+trials <- 3
+
+calculate_coefficients <- function(){
+  ind <- sample(100, 100, replace=TRUE)
+  result1 <- glm(my_data[ind,2] ~ my_data[ind,1], family=binomial(logit))
+  coefficients(result1)
+}
+calculate_coefficients()
+
+result <- foreach(icount(trials), 
+                  .combine=cbind, 
+                  .export = c("my_data","calculate_coefficients")) %dopar%
+  calculate_coefficients()
+
+result
+
+
+calculate_coefficients <- function(i){
+  ind <- sample(100, 100, replace=TRUE)
+  result1 <- glm(my_data[ind,2] ~ my_data[ind,1], family=binomial(logit))
+  coefficients(result1)
+}
+calculate_coefficients()
+
+result <- foreach(icount(trials), 
+                  .combine=cbind, 
+                  .export = c("my_data","calculate_coefficients")) %dopar%
+  calculate_coefficients()
+
+result
+
+foreach(i=1:5, j=11:15) %dopar% (i+j)
+
+
+
+result <- foreach(icount(trials), 
+                  .export = c("my_data","calculate_coefficients")) %dopar%
+  calculate_coefficients()
+
+result
+
+
+result <- foreach(icount(trials), 
+                  .export = c("my_data")) %dopar%
+  calculate_coefficients()
+
+result
+
+
+#
+# .. get DIC only ----
+#
+get_dic <- function(k){
+  result_list <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                    normalize = TRUE, k = k, raftery = FALSE)
+  result_list$dic
+}
+get_dic(4)
+
+
+# WORKS
+test <- foreach(k_number = 2:3, 
+                .export = c("dat_cens","lc_fixedsplines_tp", "get_dic"),
+                .packages = c("dplyr", "mgcv", "runjags", "rjags", "splines", "stats", "leftcensored")) %dopar%
+  get_dic(k_number)
+
+
+#
+# .. get full result only ----
+#
+get_full_result <- function(k){
+  lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                    normalize = TRUE, k = k, raftery = FALSE)
+}
+
+# WORKS!
+test <- foreach(k = 2:3, 
+                .export = c("dat_cens","lc_fixedsplines_tp", "get_dic"),
+                .packages = c("dplyr", "mgcv", "runjags", "rjags", "splines", "stats", "leftcensored")) %dopar%
+  get_full_result(k)
+
+purrr::map_dbl(test, "dic")
+
+
+#
+# .. get full result from specified data ----
+#
+
+
+
+
+
+
+
+#
+# . test effect of dropping Raftery ----
+# (and normalizaton)
+#
+
+# Test with measurement error, no normalization, and no Raftery check   
+# Much faster and seems ok enough  
+res_k5_me2 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                 normalize = FALSE, k = 5, raftery = FALSE, measurement_error = "error")
+
+# Test again res_k5 (no measurement error) but with no normlization and Raftery
+# Slightly wider confidence interval at the far right side
+res_k5_noraft <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+                                    normalize = FALSE, k = 5, raftery = FALSE)
+
+# Big effect on DIC though....
+res_k3$dic
+res_k4$dic
+res_k5$dic
+res_k5_noraft$dic
+
+sum(res_k3$deviance)
+sum(res_k4$deviance)
+sum(res_k5$deviance)
+sum(res_k5_noraft$deviance)
+
+ggplot() +
+  geom_ribbon(data = res_k5_me2$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "blue", alpha = 0.5) +
+  geom_ribbon(data = res_k5$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "red", alpha = 0.5) +
+  geom_ribbon(data = res_k5_noraft$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "green", alpha = 0.5) +
+  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
+  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+
+
+#
+# . real data ----
+#
+
+# Get one station
+data_test_orig <- subset(polybrom, station %in% "23B")
+
+# Prepare data
+# debugonce(lc_prepare)
+data_test_prep <- lc_prepare(data_test_orig, 
+                             x = "year",
+                             y = "concentration", 
+                             censored = "LOQ_flag",
+                             log = TRUE,
+                             keep_original_columns = TRUE)
+
+# Plot
+lc_plot(data_test_prep)  
+
+
+# Assume 30% measurement error  
+data_test_prep$error <- log(1.3)
+
+debugonce(lc_fixedsplines_tp)
+# normalize = TRUE gives problems in the JAGS process
+results_me <- purrr::map(3:7, 
+                         ~lc_fixedsplines_tp(data = data_test_prep, 
+                                             normalize = FALSE, k = .x, raftery = TRUE, measurement_error = "error")
+)
+names(results_me) <- paste("k =", 3:7)
+
+saveRDS(results_me, "../../temp/leftcensored_Test_script2_resut_me.rds")
+
+# result_me_lin <- lc_linear(data_test_prep, measurement_error = "meas_error")
+
+
+# Plot
+lc_plot(data_test_prep, results = results_me, facet = "wrap")
+
+# DIC
+purrr::map_dbl(results_me, "dic")
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Show that normalizing Y means that standard error is divided by sd(Y)
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# Random variable with mean 100 and sd 10
+n <- 5000
+y <- rep(100, n)
+err <- rnorm(n, 0, 10)
+# Observed y (ym):
+ym <- y + err 
+sd(ym)
+
+# Normalize 'ym'
+ym_norm <- (ym-100)/10
+mean(ym_norm)
+sd(ym_norm)
+
+# Recalculate normalized ym from y and err
+ym_norm2 <- (y-100)/10 + err/10
+
+# ym_norm and ym_norm2 seems exactly the same
+mean(ym_norm2)
+sd(ym_norm2)
+
+# More 'proof':
+plot(ym_norm[1:50])
+points(ym_norm2[1:50], pch = 18, col = 2)
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Theory: assume that error sd is proportional, e.g. 20% of the value
+#   (errorfraction = 0.2)
+# Show that log-transforming Y to Y' = log(Y) means that 
+#   standard error becomes additive with sd = exp(errorfraction)-1
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# Random variable with mean 100 and sd 10
+n <- 10000
+y_mean <- rep(100, n)
+sigma <- rnorm(n, 0, 10)
+# Observed y (ym):
+y <- y_mean + sigma 
+sd(y)
+
+logy <- log(y)
+sd(logy)
+log(sd(y))
+
+# Random variable with mean 100 and sd 10
+y_actual <- runif(1000, 20, 200)
+errorfraction = 0.2
+sd <- y_actual*errorfraction
+error <- rnorm(1000, 0, sd)
+y_obs <- y_actual + error
+
+# Plot SD relative to value
+plot(y_actual, sd)
+plot(y_obs, sd)
+
+# Plot some points withiut and with error
+plot(head(y_actual, 50))
+points(head(y_obs, 50), pch = 18, col = 2)
+
+# Plot all 
+plot(y_actual, y_obs)
+
+# Check some large numbers
+sel <- y_obs > 150
+sd(y_obs[sel] - y_actual[sel])
+175*0.2  # the "expected", quite close
+
+# Check some smaller numbers
+sel <- y_obs < 40
+sd(y_obs[sel] - y_actual[sel])
+30*0.2  # the "expected", quite close
+
+# Log transform  
+log_y_actual <- log(y_actual)
+log_y_obs <- log(y_obs)
+
+# Plot some points withiut and with error 
+plot(head(log_y_actual, 50))
+points(head(log_y_obs, 50), pch = 18, col = 2)
+
+# Plot all 
+plot(log_y_actual, log_y_obs)
+
+# Expected additive approximate errors
+error_logscale <- rnorm(1000, 0, exp(errorfraction) - 1)
+log_y_obs2 <- log_y_actual + error_logscale
+
+# Plot all 
+points(log_y_actual, log_y_obs2, pch = 18, col = 2)
+
+# Check sigma from variation around line - very close  
+mod1 <- lm(log_y_obs ~ log_y_actual)
+summary(mod1)$sigma
+mod2 <- lm(log_y_obs2 ~ log_y_actual)
+summary(mod2)$sigma
+# [1] 0.2172967
+# [1] 0.2218082
+
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # Cubic splines, no measurement error  ----   
 #
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 # Cubic splines + Qi method version with simulated data
 
@@ -529,165 +1070,42 @@ lc_plot(dat_sim,
                        Nonlin_5knots = result_5knots_qi))
 
 
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-#
-# Thin plate splines ----
-#
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-
-# Simulate data
-set.seed(2) ## simulate some data... 
-n <- 400
-dat <- mgcv::gamSim(1,n=n,dist="normal",scale=2)  
-
-# we will use only x2 and y, and x2 is renamed 'x'
-dat <- dat[c("x2", "y")]
-names(dat)[1] <- "x"
-
-ggplot(dat, aes(x, y)) +
-  geom_point()
-
-# Here: fixed threshold (but that is not necessary)
-thresh <- 4
-dat_cens <- dat[c("x","y")]
-dat_cens$y_orig <- dat_cens$y       # original (will not be used)
-sel_uncens <- dat_cens$y > thresh
-dat_cens$y[!sel_uncens] <- NA
-dat_cens$cut <- thresh
-dat_cens$cut[sel_uncens] <- NA
-dat_cens$uncensored <- 0
-dat_cens$uncensored[sel_uncens] <- 1
-
-# Data
-ggplot() +
-  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
-  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
-
-load_all()
-# debugonce(lc_fixedsplines_tp)
-
-# Test 
-res_k3 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
-                             normalize = TRUE, k = 3, raftery = TRUE)
-# returns close to a linear result in this case  
-
-res_k4 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
-                             normalize = TRUE, k = 4, raftery = TRUE)
-res_k5 <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
-                             normalize = TRUE, k = 5, raftery = TRUE)
-
-ggplot() +
-  geom_ribbon(data = res_k3$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "blue", alpha = 0.5) +
-  geom_ribbon(data = res_k4$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "green", alpha = 0.5) +
-  geom_ribbon(data = res_k5$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "red", alpha = 0.5) +
-  geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
-  geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
-
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
-# Show that normalizing Y means that standard error is divided by sd(Y)
+# Appendix: Test log-likelihood ----
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-# Random variable with mean 100 and sd 10
-n <- 5000
-y <- rep(100, n)
-err <- rnorm(n, 0, 10)
-# Observed y (ym):
-ym <- y + err 
-sd(ym)
+test <- dat_cens[15:20,]
 
-# Normalize 'ym'
-ym_norm <- (ym-100)/10
-mean(ym_norm)
-sd(ym_norm)
+# y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
 
-# Recalculate normalized ym from y and err
-ym_norm2 <- (y-100)/10 + err/10
+#   Z[j] ~ dbern(prob[j])
+#   prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
 
-# ym_norm and ym_norm2 seems exactly the same
-mean(ym_norm2)
-sd(ym_norm2)
+fitted <- c(9,4,5,7,3.5,4)  
 
-# More 'proof':
-plot(ym_norm[1:50])
-points(ym_norm2[1:50], pch = 18, col = 2)
+# uncensored part, test
+dnorm(x = 8.73, mean = 9, sd = 2)
 
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-#
-# Theory: assume that error sd is proportional, e.g. 20% of the value
-#   (errorfraction = 0.2)
-# Show that log-transforming Y to Y' = log(Y) means that 
-#   standard error becomes additive with sd = exp(errorfraction)-1
-#
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+# uncensored part, all
+i <- c(1,2,4)
+log(dnorm(x = test$y[i], mean = fitted[i], sd = 2))
+sum(log(dnorm(x = test$y[i], mean = fitted[i], sd = 2)))
 
-# Random variable with mean 100 and sd 10
-n <- 10000
-y_mean <- rep(100, n)
-sigma <- rnorm(n, 0, 10)
-# Observed y (ym):
-y <- y_mean + sigma 
-sd(y)
+# sensored part, test
+prob <- pnorm(q = 4, mean = 1, sd = 2)
+mc2d::dbern(1, prob)
 
-logy <- log(y)
-sd(logy)
-log(sd(y))
+# sensored part, all
+i <- c(3,5,6)
+prob <- pnorm(q = test$cut[i], mean = fitted[i], sd = 2)
+prob
+mc2d::dbern(1, prob)
+log(mc2d::dbern(1, prob))
 
 
-# Random variable with mean 100 and sd 10
-y_actual <- runif(1000, 20, 200)
-errorfraction = 0.2
-sd <- y_actual*errorfraction
-error <- rnorm(1000, 0, sd)
-y_obs <- y_actual + error
 
-# Plot SD relative to value
-plot(y_actual, sd)
-plot(y_obs, sd)
-
-# Plot some points withiut and with error
-plot(head(y_actual, 50))
-points(head(y_obs, 50), pch = 18, col = 2)
-
-# Plot all 
-plot(y_actual, y_obs)
-
-# Check some large numbers
-sel <- y_obs > 150
-sd(y_obs[sel] - y_actual[sel])
-175*0.2  # the "expected", quite close
-
-# Check some smaller numbers
-sel <- y_obs < 40
-sd(y_obs[sel] - y_actual[sel])
-30*0.2  # the "expected", quite close
-
-# Log transform  
-log_y_actual <- log(y_actual)
-log_y_obs <- log(y_obs)
-
-# Plot some points withiut and with error 
-plot(head(log_y_actual, 50))
-points(head(log_y_obs, 50), pch = 18, col = 2)
-
-# Plot all 
-plot(log_y_actual, log_y_obs)
-
-# Expected additive approximate errors
-error_logscale <- rnorm(1000, 0, exp(errorfraction) - 1)
-log_y_obs2 <- log_y_actual + error_logscale
-
-# Plot all 
-points(log_y_actual, log_y_obs2, pch = 18, col = 2)
-
-# Check sigma from variation around line - very close  
-mod1 <- lm(log_y_obs ~ log_y_actual)
-summary(mod1)$sigma
-mod2 <- lm(log_y_obs2 ~ log_y_actual)
-summary(mod2)$sigma
-# [1] 0.2172967
-# [1] 0.2218082
 
