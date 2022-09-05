@@ -13,10 +13,63 @@
 #' @param n.thin 
 #' @param model_parameters_for_convergence 
 #'
-#' @return
+#' @return A list including \code{summary} (summary of the JAGS coda object), \code{plot_data} (x and y 
+#' data for plotting the fitted model), and \code{dic} (the DIC value).  
+#' 
 #' @export
 #'
 #' @examples
+#' 
+#' 
+#' 
+#' # Simulate data ----
+#' set.seed(2) ## simulate some data... 
+#' n <- 50
+#' dat <- mgcv::gamSim(1,n=n,dist="normal",scale=1)  
+#' 
+#' # we will use only x2 and y, and x2 is renamed 'x'
+#' dat <- dat[c("x2", "y")]
+#' names(dat)[1] <- "x"
+#' 
+#' # Plot original data  
+#' ggplot(dat, aes(x, y)) +
+#'   geom_point()
+#' 
+#' # Make censored data (here, using a fixed thresholdm, but that is not necessary)
+#' thresh <- 4
+#' dat_cens <- dat[c("x","y")]
+#' dat_cens$y_orig <- dat_cens$y       # original (will not be used)
+#' sel_uncens <- dat_cens$y > thresh
+#' dat_cens$y[!sel_uncens] <- NA
+#' dat_cens$cut <- thresh
+#' dat_cens$cut[sel_uncens] <- NA
+#' dat_cens$uncensored <- 0
+#' dat_cens$uncensored[sel_uncens] <- 1
+#' 
+#' # Plot censored data
+#' ggplot() +
+#'   geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
+#'   geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+#' 
+#' # Quick test that JAGS runs
+#' # debugonce(lc_fixedsplines_tp)
+#' test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+#'                            normalize = TRUE, k = 3, initialize_only = TRUE)
+#' 
+#' # Add measurement error (here: a fixed value for all observations)
+#' dat_cens$error <- 1
+#' 
+#' # Plot
+#' ggplot() +
+#'   geom_pointrange(data = dat_cens[sel_uncens,], aes(x = x, y = y, ymin = y-error, ymax = y+error)) +
+#'   geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
+#' 
+#' # Quick test that JAGS runs
+#' test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
+#'                            measurement_error = "error", 
+#'                            normalize = TRUE, k = 3, initialize_only = TRUE)
+#' 
+#'
 lc_fixedsplines_tp <- function(data,
                                x = "x", 
                                y = "y", 
@@ -88,7 +141,7 @@ lc_fixedsplines_tp <- function(data,
 
   }
   
-  jagam_object <- leftcensored::get_jagam_object(dat_ordered1, dat_ordered2, 
+  jagam_object <- leftcensored:::get_jagam_object(dat_ordered1, dat_ordered2, 
                                    k_jagam = k_jagam, 
                                    measurement_error = measurement_error,
                                    k_orig = k)
@@ -99,18 +152,28 @@ lc_fixedsplines_tp <- function(data,
       data_for_analysis = dat_ordered2,
       jagam_object = jagam_object)
     
+  } else {
     
-  } else if (!make_data_only & initialize_only){
+    model_meas_error <- !is.null(measurement_error)
+    model_leftcensored <- mean(dat_ordered1$uncensored) < 1
+    
+    # Get JAGS code
+    if (!model_meas_error & model_leftcensored){
+      jagscode_txt <-  leftcensored:::get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored")
+    } else if (model_meas_error & model_leftcensored){
+      jagscode_txt <-  leftcensored:::get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored_measerror")
+    } else if (!model_meas_error & !model_leftcensored){
+      jagscode_txt <-  leftcensored:::get_jags_model_code(bs = "tp", k_code = k, type = "uncensored")
+    } else if (model_meas_error & !model_leftcensored){
+      jagscode_txt <-  leftcensored:::get_jags_model_code(bs = "tp", k_code = k, type = "uncensored_measerror")
+    }
+    
+  }
+    
+  if (!make_data_only & initialize_only){
     
     # Runs rjags::jags.model
     # Fast check of whther the code is working  
-    
-    # Get JAGS code
-    if (is.null(measurement_error)){
-      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored")
-    } else {
-      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored_measerror")
-    }
     
     jm <- rjags::jags.model(textConnection(jagscode_txt), 
                             data=jagam_object$jags.data, 
@@ -123,13 +186,6 @@ lc_fixedsplines_tp <- function(data,
       jagscode_txt = jagscode_txt)
 
   } else if (!make_data_only & !initialize_only){
-    
-    # Get JAGS code
-    if (is.null(measurement_error)){
-      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored")
-    } else {
-      jagscode_txt <-  leftcensored::get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored_measerror")
-    }
     
     # Choose the parameters to watch
     # Sample varaibles that have been inserted only to get the fitted line
@@ -230,12 +286,17 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurem
                         diagonalize = TRUE)
   
   # Modify jags.data object
+  
   n <- sum(data_ordered1$uncensored %in% 1)   # file no. 1 here 
   m <- sum(data_ordered1$uncensored %in% 0)   # file no. 1 here
+  
   jagam_object$jags.data$n <- n   # - makes sure only these data are use for the likelihood
-  jagam_object$jags.data$m <- m   #    - " -
-  jagam_object$jags.data$Z <- c(rep(0,n), rep(1, m))
-  jagam_object$jags.data$cut <- data_ordered1$cut[data_ordered1$uncensored %in% 0]
+  
+  if (m > 0){
+    jagam_object$jags.data$m <- m   #    - " -
+    jagam_object$jags.data$Z <- c(rep(0,n), rep(1, m))
+    jagam_object$jags.data$cut <- data_ordered1$cut[data_ordered1$uncensored %in% 0]
+  }
   
   if (!is.null(measurement_error))
     jagam_object$jags.data$meas_error <- data_ordered1$meas_error[data_ordered1$uncensored %in% 1]
@@ -243,6 +304,10 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurem
   if (k_orig == 2){
     jagam_object$jags.data$b2 <- 0
     jagam_object$jags.ini$b <- c(jagam_object$jags.ini$b[1], jagam_object$jags.ini$b[3])
+  }
+  
+  if (k_orig >= 4){
+    jagam_object$jags.data$k <- k_orig
   }
   
   jagam_object
