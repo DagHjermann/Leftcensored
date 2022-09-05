@@ -33,9 +33,16 @@ lc_fixedsplines_tp <- function(data,
                                make_data_only = FALSE,
                                initialize_only = FALSE,
                                raftery = TRUE,
+                               max.time = "2 minutes",
                                keep_jags_model = FALSE,
                                keep_mcmc_model = FALSE,
                                measurement_error = NULL){
+  
+  if (k == 2){
+    k_jagam <- 3
+  } else {
+    k_jagam <- k
+  }
   
   # Rename variables, reorder data and add 'y_comb'    
   dat_ordered1 <- get_ordered_data1(
@@ -82,8 +89,9 @@ lc_fixedsplines_tp <- function(data,
   }
   
   jagam_object <- get_jagam_object(dat_ordered1, dat_ordered2, 
-                                   k = k, 
-                                   measurement_error = measurement_error)
+                                   k_jagam = k_jagam, 
+                                   measurement_error = measurement_error,
+                                   k_orig = k)
   
   if (make_data_only){
     
@@ -99,9 +107,9 @@ lc_fixedsplines_tp <- function(data,
     
     # Get JAGS code
     if (is.null(measurement_error)){
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored")
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored")
     } else {
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored_measerror")
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k_jagam = k, type = "leftcensored_measerror")
     }
     
     jm <- rjags::jags.model(textConnection(jagscode_txt), 
@@ -118,9 +126,9 @@ lc_fixedsplines_tp <- function(data,
     
     # Get JAGS code
     if (is.null(measurement_error)){
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored")
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored")
     } else {
-      jagscode_txt <-  get_jags_model_code(bs = "tp", k = k, type = "leftcensored_measerror")
+      jagscode_txt <-  get_jags_model_code(bs = "tp", k_code = k, type = "leftcensored_measerror")
     }
     
     # Choose the parameters to watch
@@ -145,7 +153,8 @@ lc_fixedsplines_tp <- function(data,
       startsample = n.iter,   # Number of iterations
       startburnin = n.burnin, # Number of iterations to remove at start
       thin = n.thin,          # Amount of thinning
-      raftery.options = raftery.options)
+      raftery.options = raftery.options,
+      max.time = max.time)
     
     # DIC
     dic_list <- get_dic(model_converged)
@@ -187,7 +196,9 @@ lc_fixedsplines_tp <- function(data,
                    dic = dic_list$dic,
                    deviance = dic_list$deviance,
                    pd = dic_list$pd,
-                   model_data = jagam_object$jags.data)  
+                   model_data = jagam_object$jags.data,
+                   dat_ordered1 = dat_ordered1,
+                   dat_ordered2 = dat_ordered2)  
     
     if (keep_jags_model)
       result = append(result, list(model = model_result))
@@ -203,11 +214,12 @@ lc_fixedsplines_tp <- function(data,
 
 
 
-get_jagam_object <- function(data_ordered1, data_ordered2, k = 5, measurement_error){
+get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurement_error, 
+                             k_orig = k_orig){
   
   jags.file <- paste0(tempdir(), "/temporary.jags") 
   
-  gam_formula <- as.formula(paste0("y_comb ~ s(x, bs='tp', k=", k, ")"))
+  gam_formula <- as.formula(paste0("y_comb ~ s(x, bs='tp', k=", k_jagam, ")"))
 
   # Make (1) jags.file_tp5_orig (was used as basis for "_leftcens" file)
   # Make (2) jagam_object$jags.data (will be manpulated below)
@@ -227,6 +239,11 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k = 5, measurement_er
   
   if (!is.null(measurement_error))
     jagam_object$jags.data$meas_error <- data_ordered1$meas_error[data_ordered1$uncensored %in% 1]
+  
+  if (k_orig == 2){
+    jagam_object$jags.data$b2 <- 0
+    jagam_object$jags.ini$b <- c(jagam_object$jags.ini$b[1], jagam_object$jags.ini$b[3])
+  }
   
   jagam_object
   
