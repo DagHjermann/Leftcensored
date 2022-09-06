@@ -76,7 +76,7 @@ lc_fixedsplines_tp <- function(data,
                                uncensored = "uncensored",
                                threshold = "threshold",
                                k = 5,
-                               resolution = 50,
+                               predict_x = 50,
                                n.chains = 2, 
                                n.iter = 4000, 
                                n.burnin = 4000, 
@@ -105,7 +105,7 @@ lc_fixedsplines_tp <- function(data,
   
   # Make additional data that will be used only to make the fited line,
   #  and add them to the data  
-  dat_ordered2_list <- get_ordered_data2(dat_ordered1, fit_length = resolution)
+  dat_ordered2_list <- get_ordered_data2(dat_ordered1, added_x_values = predict_x)
   dat_ordered2 <- dat_ordered2_list$data
   
   #

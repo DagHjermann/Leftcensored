@@ -69,7 +69,7 @@ get_ordered_data1 <- function(data,
   
 }
 
-get_ordered_data2 <- function(data_ordered, fit_length){
+get_ordered_data2 <- function(data_ordered, added_x_values){
   
   #
   # Make x data that will be used for making the fitted line + conf.int.
@@ -77,9 +77,17 @@ get_ordered_data2 <- function(data_ordered, fit_length){
   # - we also make a y (could perhaps be NA?)
   #
   # Make x
-  dat_for_fit <- data.frame(
-    x = seq(min(data_ordered$x), max(data_ordered$x), length = 30)
-  )
+  if (length(new_x) == 1){
+    dat_for_fit <- data.frame(
+      x = seq(min(data_ordered$x), max(data_ordered$x), length = added_x_values)
+    )
+  } else if (length(new_x) > 1){
+    dat_for_fit <- data.frame(
+      x = added_x_values
+    )
+  } else {
+    stop("'new_x' must be supplied")
+  }
   # Make y
   # Use ordinary gam (on uncensored data) to add the y
   # (Reason: perhaps the y value affects some sort of normalization)
