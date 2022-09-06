@@ -7,7 +7,34 @@ get_jags_model_code <- function(bs = "tp",
   # Censored without measurement error ----
   #
   
-  if (bs == "tp" & k_code == 2 & type == "leftcensored"){
+  if (bs == "tp" & k_code == 1 & type == "leftcensored"){
+    
+    # 
+    code <- '
+model {
+  b_new <- c(b[1], b2, 0)                           # Added line
+  mu <- X %*% b_new ## expected response
+  for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
+  for (j in 1:m) {
+    Z[j] ~ dbern(prob[j])
+    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+  }  
+  scale <- 1/tau ## convert tau to standard GLM scale
+  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  ## Parametric effect priors CHECK tau=1/79^2 is appropriate!
+  for (i in 1:1) { b[i] ~ dnorm(0,0.00016) }
+  ## prior for s(x2)... 
+  # K1 <- S1[1,1] * lambda[1]  + S1[1,3] * lambda[2] # Changed from the code for k_code = 3
+  # b[2] ~ dmnorm(zero[3], K1)                       # Changed from the code for k_code = 3
+  ## smoothing parameter priors CHECK...
+  for (i in 1:2) {
+    lambda[i] ~ dgamma(.05,.005)
+    rho[i] <- log(lambda[i])
+  }
+}
+'
+  
+  } else if (bs == "tp" & k_code == 2 & type == "leftcensored"){
     
     # 
     code <- '
@@ -88,7 +115,36 @@ model {
 # Censored with measurement error ----
 #
 
-} else if (bs == "tp" & k_code == 2 & type == "leftcensored_measerror"){
+  } else if (bs == "tp" & k_code == 1 & type == "leftcensored_measerror"){
+    
+    code <- '
+model {
+  b_new <- c(b[1], b2, 0)                       # Added line
+  mu <- X %*% b_new ## expected response
+  for (i in 1:n) { 
+    y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
+    total_var[i] <- scale^2 + meas_error[i]^2
+    }  
+  for (j in 1:m) {
+    Z[j] ~ dbern(prob[j])
+    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+  }  
+  scale <- 1/tau ## convert tau to standard GLM scale
+  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  ## Parametric effect priors CHECK tau=1/79^2 is appropriate!
+  for (i in 1:1) { b[i] ~ dnorm(0,0.00016) }
+  ## prior for s(x2)... 
+  # K1 <- S1[1,1] * lambda[1]  + S1[1,3] * lambda[2] # Changed from the code for k_code = 3
+  # b[2] ~ dmnorm(zero[3], K1)                       # Changed from the code for k_code = 3
+  ## smoothing parameter priors CHECK...
+  for (i in 1:2) {
+    lambda[i] ~ dgamma(.05,.005)
+    rho[i] <- log(lambda[i])
+  }
+}
+'
+
+  } else if (bs == "tp" & k_code == 2 & type == "leftcensored_measerror"){
   
   code <- '
 model {
@@ -186,6 +242,28 @@ model {
 #   for the case of m == 0 
 
 
+} else if (bs == "tp" & k_code == 1 & type == "uncensored"){
+  
+  # 
+  code <- '
+model {
+  b_new <- c(b[1], b2, 0)                       # Added line
+  mu <- X %*% b_new ## expected response
+  for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
+  scale <- 1/tau ## convert tau to standard GLM scale
+  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  ## Parametric effect priors CHECK tau=1/79^2 is appropriate!
+  for (i in 1:1) { b[i] ~ dnorm(0,0.00016) }
+  ## prior for s(x2)... 
+  # K1 <- S1[1,1] * lambda[1]  + S1[1,3] * lambda[2] # Changed from the code for k_code = 3
+  # b[2] ~ dmnorm(zero[3], K1)                       # Changed from the code for k_code = 3
+  ## smoothing parameter priors CHECK...
+  for (i in 1:2) {
+    lambda[i] ~ dgamma(.05,.005)
+    rho[i] <- log(lambda[i])
+  }
+}
+'
 } else if (bs == "tp" & k_code == 2 & type == "uncensored"){
   
   # 
@@ -253,6 +331,31 @@ model {
 #
 # Uncensored with measurement error ----
 #
+
+  } else if (bs == "tp" & k_code == 1 & type == "uncensored_measerror"){
+    
+    code <- '
+model {
+  b_new <- c(b[1], b2, 0)                       # Added line
+  mu <- X %*% b_new ## expected response
+  for (i in 1:n) { 
+    y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
+    total_var[i] <- scale^2 + meas_error[i]^2
+    }  
+  scale <- 1/tau ## convert tau to standard GLM scale
+  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  ## Parametric effect priors CHECK tau=1/79^2 is appropriate!
+  for (i in 1:1) { b[i] ~ dnorm(0,0.00016) }
+  ## prior for s(x2)... 
+  # K1 <- S1[1,1] * lambda[1]  + S1[1,3] * lambda[2] # Changed from the code for k_code = 3
+  # b[2] ~ dmnorm(zero[3], K1)                       # Changed from the code for k_code = 3
+  ## smoothing parameter priors CHECK...
+  for (i in 1:2) {
+    lambda[i] ~ dgamma(.05,.005)
+    rho[i] <- log(lambda[i])
+  }
+}
+'
 
   } else if (bs == "tp" & k_code == 2 & type == "uncensored_measerror"){
     

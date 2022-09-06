@@ -91,7 +91,7 @@ lc_fixedsplines_tp <- function(data,
                                keep_mcmc_model = FALSE,
                                measurement_error = NULL){
   
-  if (k == 2){
+  if (k <= 2){
     k_jagam <- 3
   } else {
     k_jagam <- k
@@ -300,6 +300,13 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurem
   
   if (!is.null(measurement_error))
     jagam_object$jags.data$meas_error <- data_ordered1$meas_error[data_ordered1$uncensored %in% 1]
+  
+  if (k_orig == 1){
+    jagam_object$jags.data$b2 <- 0
+    jagam_object$jags.data$zero <- NULL
+    jagam_object$jags.data$S1 <- NULL
+    jagam_object$jags.ini$b <- jagam_object$jags.ini$b[1]
+  }
   
   if (k_orig == 2){
     jagam_object$jags.data$b2 <- 0
