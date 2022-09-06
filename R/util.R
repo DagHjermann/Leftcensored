@@ -77,11 +77,11 @@ get_ordered_data2 <- function(data_ordered, added_x_values){
   # - we also make a y (could perhaps be NA?)
   #
   # Make x
-  if (length(new_x) == 1){
+  if (length(added_x_values) == 1){
     dat_for_fit <- data.frame(
       x = seq(min(data_ordered$x), max(data_ordered$x), length = added_x_values)
     )
-  } else if (length(new_x) > 1){
+  } else if (length(added_x_values) > 1){
     dat_for_fit <- data.frame(
       x = added_x_values
     )

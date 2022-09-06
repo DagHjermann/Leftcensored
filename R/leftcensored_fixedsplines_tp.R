@@ -89,7 +89,9 @@ lc_fixedsplines_tp <- function(data,
                                max.time = "2 minutes",
                                keep_jags_model = FALSE,
                                keep_mcmc_model = FALSE,
-                               measurement_error = NULL){
+                               measurement_error = NULL,
+                               compare_with_last = FALSE
+                               ){
   
   if (k <= 2){
     k_jagam <- 3
@@ -188,9 +190,10 @@ lc_fixedsplines_tp <- function(data,
   } else if (!make_data_only & !initialize_only){
     
     # Choose the parameters to watch
-    # Sample varaibles that have been inserted only to get the fitted line
+    # Sample variables that have been inserted only to get the fitted line
     mu_fitted_names1 <- paste0("mu[", nrow(dat_ordered1)+1, ":", nrow(dat_ordered2), "]")
     mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_ordered1)+1, nrow(dat_ordered2)), "]")
+    dmu_fitted_names2 <- paste0("dmu[", seq(1, nrow(dat_ordered2)-nrow(dat_ordered1)-1), "]")
     
     if (raftery){
       raftery.options <- list()
@@ -199,7 +202,7 @@ lc_fixedsplines_tp <- function(data,
     }
     
     ### Run model
-    # Initial run  
+    # Initial run, monitoring only a few parameters  
     model_converged <- runjags::autorun.jags(
       data = jagam_object$jags.data,
       monitor = model_parameters_for_convergence,     
@@ -215,9 +218,19 @@ lc_fixedsplines_tp <- function(data,
     # DIC
     dic_list <- get_dic(model_converged)
     
-    # Add all model parameters and get samples for them
+    # Make a last run, monitoring many more parameters:  
+    # 1. All mu (fit) values corresponding to predict_x      
+    # 2. If also compare_with_last = TRUE, the difference between the last mu 
+    #   (typically, the last year) and all previous mu corresponding to predict_x        
+    if (compare_with_last & k > 1){
+      monitor_names <- c(mu_fitted_names1, "dmu")
+    } else {
+      monitor_names <- mu_fitted_names1
+    }
+
+    # Add the extra model parameters and get samples for them
     model_result <- runjags::extend.jags(model_converged, 
-                                         add.monitor = mu_fitted_names1,
+                                         add.monitor = monitor_names,
                                          sample = 2000)
     
     # model_result
@@ -225,17 +238,29 @@ lc_fixedsplines_tp <- function(data,
     
     summary <- summary(model_mcmc)
     quants <- summary$quantiles
-    pick_rownames <- rownames(quants) %in% mu_fitted_names2
+    pick_rownames_mu <- rownames(quants) %in% mu_fitted_names2
     
     if (normalize){
       # Denormalize predicted data
-      y_med <- denorm_y(quants[pick_rownames,"50%"])
-      y_lo <- denorm_y(quants[pick_rownames,"2.5%"])
-      y_hi <- denorm_y(quants[pick_rownames,"97.5%"])
+      y_med <- denorm_y(quants[pick_rownames_mu,"50%"])
+      y_lo <- denorm_y(quants[pick_rownames_mu,"2.5%"])
+      y_hi <- denorm_y(quants[pick_rownames_mu,"97.5%"])
+      if (compare_with_last & k > 1){
+        pick_rownames_dmu <- rownames(quants) %in% dmu_fitted_names2
+        dy_med <- quants[pick_rownames_dmu,"50%"]/scale
+        dy_lo <- quants[pick_rownames_dmu,"2.5%"]/scale
+        dy_hi <- quants[pick_rownames_dmu,"97.5%"]/scale
+      }
     } else {
-      y_med <- quants[pick_rownames,"50%"]
-      y_lo <- quants[pick_rownames,"2.5%"]
-      y_hi <- quants[pick_rownames,"97.5%"]
+      y_med <- quants[pick_rownames_mu,"50%"]
+      y_lo <- quants[pick_rownames_mu,"2.5%"]
+      y_hi <- quants[pick_rownames_mu,"97.5%"]
+      if (compare_with_last & k > 1){
+        pick_rownames_dmu <- rownames(quants) %in% dmu_fitted_names2
+        dy_med <- quants[pick_rownames_dmu,"50%"]
+        dy_lo <- quants[pick_rownames_dmu,"2.5%"]
+        dy_hi <- quants[pick_rownames_dmu,"97.5%"]
+      }
     }
     
     # Make 'plot_data'  
@@ -246,7 +271,7 @@ lc_fixedsplines_tp <- function(data,
       y_lo = y_lo,
       y_hi = y_hi  
       )
-
+    
     result <- list(summary = summary,
                    plot_data = plot_data,
                    dic = dic_list$dic,
@@ -260,6 +285,16 @@ lc_fixedsplines_tp <- function(data,
       result = append(result, list(model = model_result))
     if (keep_mcmc_model)
       result = append(result, list(model_from_jags = model_mcmc))
+    # Make 'diff_data'  
+    if (compare_with_last & k > 1){
+      diff_data <- data.frame(
+        x = head(dat_ordered2_list$data_for_fit$x, -1), 
+        y = dy_med,
+        y_lo = dy_lo,
+        y_hi = dy_hi  
+      )
+      result = append(result, list(diff_data = diff_data))
+    }
     
   }
   
@@ -315,6 +350,11 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurem
   
   if (k_orig >= 4){
     jagam_object$jags.data$k <- k_orig
+  }
+  
+  if (k_orig >= 2){
+    jagam_object$jags.data$t1 <- nrow(data_ordered1) + 1
+    jagam_object$jags.data$t2 <- nrow(data_ordered2)
   }
   
   jagam_object

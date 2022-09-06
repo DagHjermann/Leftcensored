@@ -41,6 +41,10 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
@@ -66,6 +70,10 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
@@ -91,6 +99,10 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
@@ -150,6 +162,10 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
     total_var[i] <- scale^2 + meas_error[i]^2
@@ -178,6 +194,10 @@ model {
   code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
     total_var[i] <- scale^2 + meas_error[i]^2
@@ -206,6 +226,10 @@ model {
   code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
     total_var[i] <- scale^2 + meas_error[i]^2
@@ -271,6 +295,10 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -291,6 +319,10 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -312,6 +344,10 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -363,6 +399,10 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
     total_var[i] <- scale^2 + meas_error[i]^2
@@ -387,6 +427,10 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
     total_var[i] <- scale^2 + meas_error[i]^2
@@ -411,6 +455,10 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
+  # For getting difference between last x and previous x: 
+  for (t in 1:(t2-t1)) { 
+    dmu[t] <- mu[t2] - mu[t1+t-1]
+  }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
     total_var[i] <- scale^2 + meas_error[i]^2
