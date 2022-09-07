@@ -448,7 +448,6 @@ load_all()
 test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
                            normalize = TRUE, k = 3, initialize_only = TRUE)
 
-
 # Quick test that JAGS runs with measurement error
 dat_cens$error <- 1
 
@@ -467,12 +466,12 @@ test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "unce
 
 # Test without measurement error
 
-k_values <- 2:7
-results <- purrr::map(2:7, 
+k_values <- 1:7
+results <- purrr::map(k_values, 
                       ~lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
                                           normalize = TRUE, k = .x, raftery = TRUE)
 )
-results <- purrr::map(2:7, 
+results <- purrr::map(k_values, 
                       ~lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
                                           normalize = TRUE, k = .x, raftery = FALSE)
 )
@@ -484,8 +483,8 @@ names(results) <- paste("k =", k_values)
 lc_plot(dat_cens, threshold = "cut", results = results, facet = "wrap")
 
 # DIC
-purrr::map_dbl(results, "dic")
-plot(k_values, purrr::map_dbl(results, "dic"), type = "b")
+dic1 <- purrr::map_dbl(results, "dic")
+plot(k_values, dic1, type = "b")
 
 #
 # . full tests, with measurement error ----
@@ -508,10 +507,60 @@ purrr::map_dbl(results_me, ~sum(.x$pd))
 purrr::map_dbl(results_me, ~sum(.x$deviance))
 
 # Compare DIC with and without measurement error  
-dic1 <- purrr::map_dbl(results, "dic")
-dic2 <- purrr::map_dbl(results_me, "dic")
 plot(k_values, dic1, type = "b", ylim = range(dic1, dic2))
 lines(k_values, dic2, type = "b", pch = 19)
+
+
+
+#
+# . actual data with proportional error (e.g. 20%) ----
+#
+
+# Get one station
+data_test_orig <- subset(polybrom, station %in% "23B")
+
+# Prepare data
+# debugonce(lc_prepare)
+data_test_prep <- lc_prepare(data_test_orig, 
+                             x = "year",
+                             y = "concentration", 
+                             censored = "LOQ_flag",
+                             log = TRUE,
+                             keep_original_columns = TRUE)
+
+# Plot
+lc_plot(data_test_prep)
+
+data_test_prep$meas_error <- exp(0.3) - 1
+
+
+k_values <- 1:7
+
+# Note: we hd to set normalize = FALSE
+results_me <- purrr::map(k_values, 
+                         ~lc_fixedsplines_tp(data = data_test_prep, 
+                                             normalize = FALSE, k = .x, raftery = FALSE, measurement_error = "meas_error", 
+                                             predict_x = seq(min(data_test_prep$x), max((data_test_prep$x))))
+                         
+)
+names(results_me) <- paste("k =", k_values)
+
+# Plot
+lc_plot(data_test_prep,  results = results_me, facet = "wrap")
+
+# DIC
+dic <- purrr::map_dbl(results_me, "dic")
+plot(k_values, dic, type = "b")
+
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = data_test_prep, 
+                           normalize = FALSE, k = 2, raftery = FALSE, measurement_error = "meas_error", 
+                           predict_x = seq(min(data_test_prep$x), max((data_test_prep$x))), compare_with_last = TRUE)
+lc_plot(data_test_prep,  results = test, facet = "wrap")
+ggplot(test$diff_data, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_lo, ymax = y_hi), fill = "grey70") +
+  geom_line()
+
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #

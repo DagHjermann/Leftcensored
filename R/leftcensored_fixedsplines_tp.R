@@ -133,13 +133,19 @@ lc_fixedsplines_tp <- function(data,
   if (normalize){
     
     # Normalize x, y and y_comb   
-    # norm <- normalize_lm(dat_ordered2$x, c(data_obs$y_comb, data_cen$cut))
-    dat_ordered2$x <- norm_x(dat_ordered2$x)
-    dat_ordered2$y <- norm_y(dat_ordered2$y)
-    dat_ordered2$y_comb <- norm_y(dat_ordered2$y_comb)
-    dat_ordered2$cut <- norm_y(dat_ordered2$cut)
-    if (!is.null(measurement_error))
-      dat_ordered2$meas_error <- norm_y(dat_ordered2$meas_error)
+    
+    normalize_data <- function(data){
+      data$x <- norm_x(data$x)
+      data$y <- norm_y(data$y)
+      data$y_comb <- norm_y(data$y_comb)
+      data$cut <- norm_y(data$cut)
+      if (!is.null(measurement_error))
+        data$meas_error <- norm_y(data$meas_error)
+      data
+    }
+    
+    dat_ordered1 <- normalize_data(dat_ordered1)
+    dat_ordered2 <- normalize_data(dat_ordered2)
 
   }
   
