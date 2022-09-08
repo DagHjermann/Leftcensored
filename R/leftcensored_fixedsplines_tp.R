@@ -1,17 +1,36 @@
 #' Thin plate splines for censored data  
 #'
-#' @param data 
-#' @param x 
-#' @param y 
-#' @param uncensored 
-#' @param threshold 
-#' @param k 
-#' @param resolution 
-#' @param n.chains 
-#' @param n.iter 
-#' @param n.burnin 
-#' @param n.thin 
-#' @param model_parameters_for_convergence 
+#' @param data Data frame   
+#' @param x The name of the x (predictor) variable (must be quoted)   
+#' @param y The name of the y (response) variable (must be quoted)  
+#' @param uncensored The name of the variable telling which y values that are censored. The variable must 
+#' equal 0 for censored data and 1 for uncensored data. Must be in quotes.
+#' @param threshold The name of the variable giving the threshold for censoring (for censored data only). E.g.,
+#' for chemical data it typically is the quantification limit. Must be in quotes.
+#' @param k Number of degrees of freedom for the thin-plate spline function. k = 1 results in a constant model (Y = b), while 
+#' k = 2 results in a linear model (ordinary linear regression)    
+#' @param predict_x A single number or a vector giving the x values that will be used for prediction (e.g., for
+#' plotting the fit). If a single number is given, it is interpreted as the number of x values to use.
+#' @param n.chains Used by JAGS (see runjags::autorun.jags)  
+#' @param n.iter Used by JAGS (see runjags::autorun.jags)    
+#' @param n.burnin Used by JAGS (see runjags::autorun.jags)  
+#' @param n.thin Used by JAGS (see runjags::autorun.jags)  
+#' @param model_parameters_for_convergence  
+#' @param normalize Whether data will be normalized before they are sent to JAGS (default = TRUE)  
+#' @param make_data_only Default = FALSE
+#' @param initialize_only Default = FALSE
+#' @param raftery Whether Raftery's criterion for convergence will be used (default = TRUE)  
+#' @param max.time See runjags::autorun.jags. Default = "2 minutes"  
+#' @param keep_jags_model Default = FALSE  
+#' @param keep_mcmc_model Default = FALSE  
+#' @param measurement_error The name of the variable that contains the measurement error. Must be in quotes. 
+#' If it's not set, the model will be fitted without measurement error. 
+#' @param reference_x An x value to serve as the reference. If this is given, the function will 
+#' output the differences between the predicted y values and the y value for the reference x. For instance, 
+#' if y is a time series, \code{reference_x} can be set to a given year, and the function will
+#' output a data frame \code{diff_data} containting the difference (with confidence intervals) between each year's
+#' value and the reference year value. If \code{reference_x} is set to zero, the last x (or the last value of 
+#' predict_x) will be used. If reference_x is NULL (the default) the comparison will not be calculated.
 #'
 #' @return A list including \code{summary} (summary of the JAGS coda object), \code{plot_data} (x and y 
 #' data for plotting the fitted model), and \code{dic} (the DIC value).  
@@ -90,7 +109,7 @@ lc_fixedsplines_tp <- function(data,
                                keep_jags_model = FALSE,
                                keep_mcmc_model = FALSE,
                                measurement_error = NULL,
-                               compare_with_last = FALSE
+                               reference_x = NULL
                                ){
   
   if (k <= 2){
@@ -152,6 +171,7 @@ lc_fixedsplines_tp <- function(data,
   jagam_object <- leftcensored:::get_jagam_object(dat_ordered1, dat_ordered2, 
                                    k_jagam = k_jagam, 
                                    measurement_error = measurement_error,
+                                   reference_x = reference_x,
                                    k_orig = k)
   
   if (make_data_only){
@@ -199,7 +219,7 @@ lc_fixedsplines_tp <- function(data,
     # Sample variables that have been inserted only to get the fitted line
     mu_fitted_names1 <- paste0("mu[", nrow(dat_ordered1)+1, ":", nrow(dat_ordered2), "]")
     mu_fitted_names2 <- paste0("mu[", seq(nrow(dat_ordered1)+1, nrow(dat_ordered2)), "]")
-    dmu_fitted_names2 <- paste0("dmu[", seq(1, nrow(dat_ordered2)-nrow(dat_ordered1)-1), "]")
+    dmu_fitted_names2 <- paste0("dmu[", seq(1, nrow(dat_ordered2)-nrow(dat_ordered1)), "]")
     
     if (raftery){
       raftery.options <- list()
@@ -226,9 +246,13 @@ lc_fixedsplines_tp <- function(data,
     
     # Make a last run, monitoring many more parameters:  
     # 1. All mu (fit) values corresponding to predict_x      
-    # 2. If also compare_with_last = TRUE, the difference between the last mu 
-    #   (typically, the last year) and all previous mu corresponding to predict_x        
-    if (compare_with_last & k > 1){
+    # 2. If compare_with_reference = TRUE, all values of dmu (the difference between mu and the reference mu)
+    #    Note: dmu is part of the JAGS model code also when compare_with_reference = FALSE (for a small 
+    #    computational cost?), it is just not monitored.
+
+    compare_with_reference <- !is.null(reference_x)
+    
+    if (compare_with_reference & k > 1){
       monitor_names <- c(mu_fitted_names1, "dmu")
     } else {
       monitor_names <- mu_fitted_names1
@@ -251,7 +275,7 @@ lc_fixedsplines_tp <- function(data,
       y_med <- denorm_y(quants[pick_rownames_mu,"50%"])
       y_lo <- denorm_y(quants[pick_rownames_mu,"2.5%"])
       y_hi <- denorm_y(quants[pick_rownames_mu,"97.5%"])
-      if (compare_with_last & k > 1){
+      if (compare_with_reference & k > 1){
         pick_rownames_dmu <- rownames(quants) %in% dmu_fitted_names2
         dy_med <- quants[pick_rownames_dmu,"50%"]/scale
         dy_lo <- quants[pick_rownames_dmu,"2.5%"]/scale
@@ -261,7 +285,7 @@ lc_fixedsplines_tp <- function(data,
       y_med <- quants[pick_rownames_mu,"50%"]
       y_lo <- quants[pick_rownames_mu,"2.5%"]
       y_hi <- quants[pick_rownames_mu,"97.5%"]
-      if (compare_with_last & k > 1){
+      if (compare_with_reference & k > 1){
         pick_rownames_dmu <- rownames(quants) %in% dmu_fitted_names2
         dy_med <- quants[pick_rownames_dmu,"50%"]
         dy_lo <- quants[pick_rownames_dmu,"2.5%"]
@@ -292,9 +316,10 @@ lc_fixedsplines_tp <- function(data,
     if (keep_mcmc_model)
       result = append(result, list(model_from_jags = model_mcmc))
     # Make 'diff_data'  
-    if (compare_with_last & k > 1){
+    if (compare_with_reference & k > 1){
       diff_data <- data.frame(
-        x = head(dat_ordered2_list$data_for_fit$x, -1), 
+        x = dat_ordered2_list$data_for_fit$x, 
+        x_reference = dat_ordered2_list$data_for_fit$x[jagam_object$jags.data$t_ref], 
         y = dy_med,
         y_lo = dy_lo,
         y_hi = dy_hi  
@@ -311,7 +336,8 @@ lc_fixedsplines_tp <- function(data,
 
 
 
-get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurement_error, 
+get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, 
+                             measurement_error, reference_x, 
                              k_orig = k_orig){
   
   jags.file <- paste0(tempdir(), "/temporary.jags") 
@@ -359,11 +385,23 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5, measurem
   }
   
   if (k_orig >= 2){
-    jagam_object$jags.data$t1 <- nrow(data_ordered1) + 1
-    jagam_object$jags.data$t2 <- nrow(data_ordered2)
+    t1 <- nrow(data_ordered1) + 1
+    t2 <- nrow(data_ordered2)
+    jagam_object$jags.data$t1 <- t1
+    jagam_object$jags.data$t2 <- t2
+    if (is.null(reference_x)){
+      # Last value (but will not be observed in JAGS)
+      jagam_object$jags.data$t_ref <- t2
+    } else if (reference_x == 0){
+      # Last value (and will be observed in JAGS)
+      jagam_object$jags.data$t_ref <- t2 
+    } else {
+      # Find the t where x is closest to reference_x: 
+      jagam_object$jags.data$t_ref <- t1 + which.min(abs(data_ordered2$x[t1:t2]-reference_x)) - 1 
+    }
   }
   
   jagam_object
-  
+
 }
 

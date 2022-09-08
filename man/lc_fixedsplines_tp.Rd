@@ -11,7 +11,7 @@ lc_fixedsplines_tp(
   uncensored = "uncensored",
   threshold = "threshold",
   k = 5,
-  resolution = 50,
+  predict_x = 50,
   n.chains = 2,
   n.iter = 4000,
   n.burnin = 4000,
@@ -24,33 +24,59 @@ lc_fixedsplines_tp(
   max.time = "2 minutes",
   keep_jags_model = FALSE,
   keep_mcmc_model = FALSE,
-  measurement_error = NULL
+  measurement_error = NULL,
+  compare_with_last = FALSE
 )
 }
 \arguments{
-\item{data}{}
+\item{data}{Data frame}
 
-\item{x}{}
+\item{x}{The name of the x (predictor) variable (must be quoted)}
 
-\item{y}{}
+\item{y}{The name of the y (response) variable (must be quoted)}
 
-\item{uncensored}{}
+\item{uncensored}{The name of the variable telling which y values that are censored. The variable must
+equal 0 for censored data and 1 for uncensored data. Must be in quotes.}
 
-\item{threshold}{}
+\item{threshold}{The name of the variable giving the threshold for censoring (for censored data only). E.g.,
+for chemical data it typically is the quantification limit. Must be in quotes.}
 
-\item{k}{}
+\item{k}{Number of degrees of freedom for the thin-plate spline function. k = 1 results in a constant model (Y = b), while
+k = 2 results in a linear model (ordinary linear regression)}
 
-\item{resolution}{}
+\item{predict_x}{A single number or a vector giving the x values that will be used for prediction (e.g., for
+plotting the fit). If a single number is given, it is interpreted as the number of x values to use.}
 
-\item{n.chains}{}
+\item{n.chains}{Used by JAGS (see runjags::autorun.jags)}
 
-\item{n.iter}{}
+\item{n.iter}{Used by JAGS (see runjags::autorun.jags)}
 
-\item{n.burnin}{}
+\item{n.burnin}{Used by JAGS (see runjags::autorun.jags)}
 
-\item{n.thin}{}
+\item{n.thin}{Used by JAGS (see runjags::autorun.jags)}
 
 \item{model_parameters_for_convergence}{}
+
+\item{normalize}{Whether data will be normalized before they are sent to JAGS (default = TRUE)}
+
+\item{make_data_only}{Default = FALSE}
+
+\item{initialize_only}{Default = FALSE}
+
+\item{raftery}{Whether Raftery's criterion for convergence will be used (default = TRUE)}
+
+\item{max.time}{See runjags::autorun.jags. Default = "2 minutes"}
+
+\item{keep_jags_model}{Default = FALSE}
+
+\item{keep_mcmc_model}{Default = FALSE}
+
+\item{measurement_error}{The name of the variable that contains the measurement error. Must be in quotes.
+If it's not set, the model will be fitted without measurement error.}
+
+\item{compare_with_last}{Whether the function will estimate the difference between the last value
+used for prediction and all the other values (given by predict_x). USeful if x represents time, and
+you want to get an estimate of change (e.g., the change over the last 10 years). Default = FALSE.}
 }
 \value{
 A list including \code{summary} (summary of the JAGS coda object), \code{plot_data} (x and y
