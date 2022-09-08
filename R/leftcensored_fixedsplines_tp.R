@@ -1,17 +1,33 @@
 #' Thin plate splines for censored data  
 #'
-#' @param data 
-#' @param x 
-#' @param y 
-#' @param uncensored 
-#' @param threshold 
-#' @param k 
-#' @param resolution 
-#' @param n.chains 
-#' @param n.iter 
-#' @param n.burnin 
-#' @param n.thin 
-#' @param model_parameters_for_convergence 
+#' @param data Data frame   
+#' @param x The name of the x (predictor) variable (must be quoted)   
+#' @param y The name of the y (response) variable (must be quoted)  
+#' @param uncensored The name of the variable telling which y values that are censored. The variable must 
+#' equal 0 for censored data and 1 for uncensored data. Must be in quotes.
+#' @param threshold The name of the variable giving the threshold for censoring (for censored data only). E.g.,
+#' for chemical data it typically is the quantification limit. Must be in quotes.
+#' @param k Number of degrees of freedom for the thin-plate spline function. k = 1 results in a constant model (Y = b), while 
+#' k = 2 results in a linear model (ordinary linear regression)    
+#' @param predict_x A single number or a vector giving the x values that will be used for prediction (e.g., for
+#' plotting the fit). If a single number is given, it is interpreted as the number of x values to use.
+#' @param n.chains Used by JAGS (see runjags::autorun.jags)  
+#' @param n.iter Used by JAGS (see runjags::autorun.jags)    
+#' @param n.burnin Used by JAGS (see runjags::autorun.jags)  
+#' @param n.thin Used by JAGS (see runjags::autorun.jags)  
+#' @param model_parameters_for_convergence  
+#' @param normalize Whether data will be normalized before they are sent to JAGS (default = TRUE)  
+#' @param make_data_only Default = FALSE
+#' @param initialize_only Default = FALSE
+#' @param raftery Whether Raftery's criterion for convergence will be used (default = TRUE)  
+#' @param max.time See runjags::autorun.jags. Default = "2 minutes"  
+#' @param keep_jags_model Default = FALSE  
+#' @param keep_mcmc_model Default = FALSE  
+#' @param measurement_error The name of the variable that contains the measurement error. Must be in quotes. 
+#' If it's not set, the model will be fitted without measurement error. 
+#' @param compare_with_last Whether the function will estimate the difference between the last value 
+#' used for prediction and all the other values (given by predict_x). USeful if x represents time, and
+#' you want to get an estimate of change (e.g., the change over the last 10 years). Default = FALSE.  
 #'
 #' @return A list including \code{summary} (summary of the JAGS coda object), \code{plot_data} (x and y 
 #' data for plotting the fitted model), and \code{dic} (the DIC value).  
