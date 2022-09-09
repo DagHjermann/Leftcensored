@@ -29,7 +29,7 @@ b <- result$slope["50%"]
 # Add regression line to the plot  
 abline(a, b, col = "green3")
 # Add confidence interval  
-lines(y_lo ~ x, data = result$plot_data, lty = "dashed", col = "green3")
+lines(y_q2.5 ~ x, data = result$plot_data, lty = "dashed", col = "green3")
 lines(y_hi ~ x, data = result$plot_data, lty = "dashed", col = "green3")
 
 # DIC
@@ -534,8 +534,9 @@ lc_plot(data_test_prep)
 data_test_prep$meas_error <- exp(0.3) - 1
 
 #
-# . - test 'reference_x'  
+# . - test 'reference_x'  ----
 #
+# debugonce(lc_fixedsplines_tp)
 test <- lc_fixedsplines_tp(data = data_test_prep,
                            normalize = FALSE, k = 3, raftery = FALSE, measurement_error = "meas_error",
                            predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
@@ -543,12 +544,18 @@ test <- lc_fixedsplines_tp(data = data_test_prep,
 
 
 ggplot(test$diff_data, aes(x, y)) +
-  geom_ribbon(aes(ymin = y_lo, ymax = y_hi), fill = "grey70") +
-  geom_line()
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
+  geom_line() +
+  geom_point(aes(color = p_category))
+
+ggplot(test$diff_data, aes(x, p)) +
+  geom_line() + geom_point() +
+  scale_y_log10() +
+  geom_hline(yintercept = c(0.05, 0.01, 0.001), linetype = "dashed")
 
 
 #
-# . - test all k's    
+# . - test all k's ----  
 #
 
 k_values <- 1:7
@@ -575,7 +582,7 @@ test <- lc_fixedsplines_tp(data = data_test_prep,
                            predict_x = seq(min(data_test_prep$x), max((data_test_prep$x))), compare_with_last = TRUE)
 lc_plot(data_test_prep,  results = test, facet = "wrap")
 ggplot(test$diff_data, aes(x, y)) +
-  geom_ribbon(aes(ymin = y_lo, ymax = y_hi), fill = "grey70") +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
   geom_line()
 
 
@@ -846,9 +853,9 @@ sum(res_k5$deviance)
 sum(res_k5_noraft$deviance)
 
 ggplot() +
-  geom_ribbon(data = res_k5_me2$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "blue", alpha = 0.5) +
-  geom_ribbon(data = res_k5$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "red", alpha = 0.5) +
-  geom_ribbon(data = res_k5_noraft$plot_data, aes(x= x, ymin = y_lo, ymax = y_hi), fill = "green", alpha = 0.5) +
+  geom_ribbon(data = res_k5_me2$plot_data, aes(x= x, ymin = y_q2.5, ymax = y_q97.5), fill = "blue", alpha = 0.5) +
+  geom_ribbon(data = res_k5$plot_data, aes(x= x, ymin = y_q2.5, ymax = y_q97.5), fill = "red", alpha = 0.5) +
+  geom_ribbon(data = res_k5_noraft$plot_data, aes(x= x, ymin = y_q2.5, ymax = y_q97.5), fill = "green", alpha = 0.5) +
   geom_point(data = dat_cens[sel_uncens,], aes(x = x, y = y)) +
   geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
 

@@ -268,7 +268,10 @@ lc_fixedsplines_tp <- function(data,
     
     summary <- summary(model_mcmc)
     quants <- summary$quantiles
+    stats <- summary$statistics
+
     pick_rownames_mu <- rownames(quants) %in% mu_fitted_names2
+    unequal_rownames <- sum(rownames(quants) != rownames(stats)) > 0
     
     if (normalize){
       # Denormalize predicted data
@@ -276,20 +279,30 @@ lc_fixedsplines_tp <- function(data,
       y_lo <- denorm_y(quants[pick_rownames_mu,"2.5%"])
       y_hi <- denorm_y(quants[pick_rownames_mu,"97.5%"])
       if (compare_with_reference & k > 1){
+        if (unequal_rownames)
+          stop("Cannot set 'reference_x'. (rownames(quants) != rownames(stats), cannot use 'pick_rownames_dmu' for both)")
         pick_rownames_dmu <- rownames(quants) %in% dmu_fitted_names2
         dy_med <- quants[pick_rownames_dmu,"50%"]/scale
         dy_lo <- quants[pick_rownames_dmu,"2.5%"]/scale
         dy_hi <- quants[pick_rownames_dmu,"97.5%"]/scale
+        dy_mean <- stats[pick_rownames_dmu, "Mean"]/scale
+        dy_sd <- stats[pick_rownames_dmu, "SD"]/scale
+        pvalue <- 2*(1-pt(abs(dy_mean)/dy_sd, df = length(dy_mean)-1))
       }
     } else {
       y_med <- quants[pick_rownames_mu,"50%"]
       y_lo <- quants[pick_rownames_mu,"2.5%"]
       y_hi <- quants[pick_rownames_mu,"97.5%"]
       if (compare_with_reference & k > 1){
+        if (unequal_rownames)
+          stop("Cannot set 'reference_x'. (rownames(quants) != rownames(stats), cannot use 'pick_rownames_dmu' for both)")
         pick_rownames_dmu <- rownames(quants) %in% dmu_fitted_names2
         dy_med <- quants[pick_rownames_dmu,"50%"]
         dy_lo <- quants[pick_rownames_dmu,"2.5%"]
         dy_hi <- quants[pick_rownames_dmu,"97.5%"]
+        dy_mean <- stats[pick_rownames_dmu, "Mean"]
+        dy_sd <- stats[pick_rownames_dmu, "SD"]
+        pvalue <- 2*(1-pt(abs(dy_mean)/dy_sd, df = length(dy_mean)-1))
       }
     }
     
@@ -298,8 +311,8 @@ lc_fixedsplines_tp <- function(data,
     plot_data <- data.frame(
       x = dat_ordered2_list$data_for_fit$x, 
       y = y_med,
-      y_lo = y_lo,
-      y_hi = y_hi  
+      y_q2.5 = y_lo,
+      y_q97.5 = y_hi  
       )
     
     result <- list(summary = summary,
@@ -321,8 +334,18 @@ lc_fixedsplines_tp <- function(data,
         x = dat_ordered2_list$data_for_fit$x, 
         x_reference = dat_ordered2_list$data_for_fit$x[jagam_object$jags.data$t_ref], 
         y = dy_med,
-        y_lo = dy_lo,
-        y_hi = dy_hi  
+        y_q2.5 = dy_lo,
+        y_q97.5 = dy_hi,
+        y_mean = dy_mean,
+        y_sd = dy_sd,
+        # 2-sided t test based on the mean and sd:
+        p = pvalue,
+        p_category = cut(
+          pvalue, 
+          breaks = c(0, 0.001, 0.01, 0.05, 1), 
+          labels = c("P < 0.001", "P < 0.01", "P < 0.05", "P > 0.05"),
+          ordered_result = TRUE
+        )
       )
       result = append(result, list(diff_data = diff_data))
     }
