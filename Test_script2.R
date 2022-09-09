@@ -533,6 +533,23 @@ lc_plot(data_test_prep)
 
 data_test_prep$meas_error <- exp(0.3) - 1
 
+#
+# . - test 'reference_x'  
+#
+test <- lc_fixedsplines_tp(data = data_test_prep,
+                           normalize = FALSE, k = 3, raftery = FALSE, measurement_error = "meas_error",
+                           predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                           reference_x = 2010)
+
+
+ggplot(test$diff_data, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_lo, ymax = y_hi), fill = "grey70") +
+  geom_line()
+
+
+#
+# . - test all k's    
+#
 
 k_values <- 1:7
 
