@@ -41,9 +41,9 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
@@ -70,9 +70,9 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
@@ -99,9 +99,9 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
@@ -162,9 +162,9 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
@@ -194,9 +194,9 @@ model {
   code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
@@ -226,9 +226,9 @@ model {
   code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
@@ -295,9 +295,9 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   scale <- 1/tau ## convert tau to standard GLM scale
@@ -319,9 +319,9 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   scale <- 1/tau ## convert tau to standard GLM scale
@@ -344,9 +344,9 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   scale <- 1/tau ## convert tau to standard GLM scale
@@ -399,9 +399,9 @@ model {
 model {
   b_new <- c(b[1], b2, b[2])                       # Added line
   mu <- X %*% b_new ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
@@ -427,9 +427,9 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
@@ -455,9 +455,9 @@ model {
     code <- '
 model {
   mu <- X %*% b ## expected response
-  # For getting difference between last x and previous x: 
+  # Difference mu - reference mu (observed only if reference_x is set): 
   for (t in 1:(t2-t1+1)) { 
-    dmu[t] <- mu[t_ref] - mu[t1+t-1]
+    dmu[t] <- mu[t1+t-1]-mu[t_ref]
   }
   for (i in 1:n) { 
     y[i] ~ dnorm(mu[i], total_var[i]^-1)       ## response
