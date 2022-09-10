@@ -63,6 +63,7 @@ lc_plot <- function(data,
                     y = "y", 
                     uncensored = "uncensored",
                     threshold = "threshold",
+                    sampleinfo = FALSE,
                     results = NULL,
                     y_true = NULL,
                     facet = NULL){
@@ -72,7 +73,8 @@ lc_plot <- function(data,
   data <- rename_check(data, uncensored, "uncensored")
   data <- rename_check(data, threshold, "threshold")
 
-  gg <- ggplot(data, aes(x, y))
+  gg <- ggplot(data = subset(data, uncensored == 1), aes(x, y))
+  
   if (!is.null(results)){
     if (is.data.frame(results$plot_data)){
       # If results is not a list of result objects, but just a single result object
@@ -115,14 +117,30 @@ lc_plot <- function(data,
         facet_wrap(vars(Model))
     }
   }
+  
   gg <- gg +
     geom_point() +
     geom_point(data = subset(data, uncensored == 0), aes(y = threshold), shape = 6)
+  
   if (!is.null(y_true)){
     data$y_true <- data[[y_true]]
     gg <- gg +
       geom_line(aes(y = y_true), color = "brown", width = 2)
   }
+  
+  if (sampleinfo){
+    
+    data_summ <- data %>%
+      group_by(x) %>%
+      summarise(N_over = sum(uncensored %in% 1),
+                N_under = sum(uncensored %in% 0),
+                N_text = paste0(N_over, "/", N_under), .groups = "drop")
+    
+    gg <- gg +
+      geom_text(data = data_summ, aes(y = -Inf, label = N_text), vjust = -1, size = 4)
+    
+  }
+  
   gg
 }
 
