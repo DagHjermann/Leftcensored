@@ -109,7 +109,8 @@ lc_fixedsplines_tp <- function(data,
                                keep_jags_model = FALSE,
                                keep_mcmc_model = FALSE,
                                measurement_error = NULL,
-                               reference_x = NULL
+                               reference_x = NULL,
+                               set_last_equal_x = NULL
                                ){
   
   if (k <= 2){
@@ -269,6 +270,24 @@ lc_fixedsplines_tp <- function(data,
     summary <- summary(model_mcmc)
     quants <- summary$quantiles
     stats <- summary$statistics
+    
+    if (!is.null(set_last_equal_x)){
+      
+      i_to_replace <- which(predict_x == set_last_equal_x)
+      mu_to_copy <- mu_fitted_names2[predict_x == set_last_equal_x]
+      mu_to_replace <- tail(mu_fitted_names2, -i_to_replace)
+      for (mu in mu_to_replace){
+        quants[mu,] <- quants[mu_to_copy,]
+        stats[mu,] <- stats[mu_to_copy,]
+      }
+      dmu_to_copy <- dmu_fitted_names2[predict_x == set_last_equal_x]
+      dmu_to_replace <- tail(dmu_fitted_names2, -i_to_replace)
+      for (dmu in dmu_to_replace){
+        quants[dmu,] <- quants[dmu_to_copy,]
+        stats[dmu,] <- stats[dmu_to_copy,]
+      }
+
+    }
 
     pick_rownames_mu <- rownames(quants) %in% mu_fitted_names2
     unequal_rownames <- sum(rownames(quants) != rownames(stats)) > 0
