@@ -263,7 +263,7 @@ lc_flag2 <- function(data, show_result = TRUE){
               N_text = paste0(N_over, "/", N_under), .groups = "drop") %>%
     as.data.frame()
   
-  data$Flag2 <- TRUE
+  data$Rule2 <- TRUE
   
   if (data_summ$N_over[1] == 0){
     
@@ -271,11 +271,11 @@ lc_flag2 <- function(data, show_result = TRUE){
     
     if (length(x_accepted) >= 1){
       sel <- data$x < x_accepted[1]
-      data$Flag2[sel] <- FALSE
+      data$Rule2[sel] <- FALSE
       if (show_result)
-        message("Flagged data (Rule2 = FALSE() with x < ", x_accepted[1], " (", sum(!data$Flag2), " rows of data)")
+        message("Flagged data (Rule2 = FALSE() with x < ", x_accepted[1], " (", sum(!data$Rule2), " rows of data)")
     } else {
-      data$Flag2 <- FALSE
+      data$Rule2 <- FALSE
       if (show_result)
         message("No uncensored values in the data")
     }
