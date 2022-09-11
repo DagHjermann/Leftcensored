@@ -10,6 +10,7 @@ lc_plot(
   y = "y",
   uncensored = "uncensored",
   threshold = "threshold",
+  sampleinfo = FALSE,
   results = NULL,
   y_true = NULL,
   facet = NULL
