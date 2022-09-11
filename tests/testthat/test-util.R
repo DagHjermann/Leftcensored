@@ -35,3 +35,62 @@ test_that("get_dat_ordered1 orders correctly", {
   result <- get_dat_ordered1(df, x = "xx", y = "yx", uncensored = "uncensoredx", threshold = "cutx")
   expect_equal(result$uncensored, c(1,1,1,1,0,0))
 })
+
+
+
+# test_data_base <- data.frame(
+#   x = rep(2009:2020, each = 3),
+#   threshold = NA,
+#   uncensored = 1
+# )
+# saveRDS(test_data_base, "tests/testthat/fixtures/test_data_clean.rds")
+
+
+test_that("lc_clean1 - file doesn't need cleaning", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2010:2011, 2013, 2016))
+  test_result <- lc_clean1(test_data)  
+  expect_equal(test_data, test_result)
+})
+
+test_that("lc_clean1 - clean 4 years", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2010:2016))
+  test_result <- lc_clean1(test_data) 
+  expect_equal(subset(test_data, x>=2013), test_result)
+})
+
+test_that("lc_clean1 - clean almost all", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2010:2011, 2013, 2016:2019))
+  test_result <- lc_clean1(test_data)  
+  expect_equal(subset(test_data, x>=2019), test_result)
+})
+
+test_that("lc_clean2 - file doesn't need cleaning", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2010:2019))
+  test_result <- lc_clean2(test_data)  
+  expect_equal(test_data, test_result)
+})
+
+test_that("lc_clean2 - delete one year", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2009, 2019))
+  test_result <- lc_clean2(test_data)  
+  expect_equal(length(unique(test_result$x)), 11)
+})
+
+test_that("lc_clean2 - delete one year", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2009, 2019))
+  test_result <- lc_clean2(test_data)  
+  expect_equal(subset(test_data, x>=2010), test_result)
+})
+
+test_that("lc_clean2 - delete 4 years", {
+  test_data_base <- readRDS(test_path("fixtures", "test_data_clean.rds"))
+  test_data <- set_x_to_censored(test_data_base, c(2009:2012, 2019))
+  test_result <- lc_clean2(test_data)  
+  expect_equal(subset(test_data, x>=2013), test_result)
+})
