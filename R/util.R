@@ -134,3 +134,8 @@ get_dic <- function(runjags_object){
     dic = dic)
 
 }
+
+
+
+
+  

@@ -25,7 +25,8 @@ lc_fixedsplines_tp(
   keep_jags_model = FALSE,
   keep_mcmc_model = FALSE,
   measurement_error = NULL,
-  compare_with_last = FALSE
+  reference_x = NULL,
+  set_last_equal_x = NULL
 )
 }
 \arguments{
@@ -74,9 +75,12 @@ plotting the fit). If a single number is given, it is interpreted as the number 
 \item{measurement_error}{The name of the variable that contains the measurement error. Must be in quotes.
 If it's not set, the model will be fitted without measurement error.}
 
-\item{compare_with_last}{Whether the function will estimate the difference between the last value
-used for prediction and all the other values (given by predict_x). USeful if x represents time, and
-you want to get an estimate of change (e.g., the change over the last 10 years). Default = FALSE.}
+\item{reference_x}{An x value to serve as the reference. If this is given, the function will
+output the differences between the predicted y values and the y value for the reference x. For instance,
+if y is a time series, \code{reference_x} can be set to a given year, and the function will
+output a data frame \code{diff_data} containting the difference (with confidence intervals) between each year's
+value and the reference year value. If \code{reference_x} is set to zero, the last x (or the last value of
+predict_x) will be used. If reference_x is NULL (the default) the comparison will not be calculated.}
 }
 \value{
 A list including \code{summary} (summary of the JAGS coda object), \code{plot_data} (x and y
