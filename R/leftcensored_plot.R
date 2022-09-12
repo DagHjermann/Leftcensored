@@ -98,22 +98,22 @@ lc_plot <- function(data,
     analysis_result$Model <- factor(analysis_result$Model, levels = names(results))
     if (is.null(facet)){
     gg <- gg +
-      geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, fill = Model), alpha = 0.5) +
-      geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi, color = Model))
+      geom_ribbon(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5, fill = Model), alpha = 0.5) +
+      geom_line(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5, color = Model))
     } else if (facet == "cols"){
       gg <- gg +
-        geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi), alpha = 0.5) +
-        geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi)) +
+        geom_ribbon(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5), alpha = 0.5) +
+        geom_line(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5)) +
         facet_grid(cols = vars(Model))
     } else if (facet == "rows"){
       gg <- gg +
-        geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi), alpha = 0.5) +
-        geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi)) +
+        geom_ribbon(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5), alpha = 0.5) +
+        geom_line(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5)) +
         facet_grid(rows = vars(Model))
     } else if (facet == "wrap"){
       gg <- gg +
-        geom_ribbon(data = analysis_result, aes(ymin = y_lo, ymax = y_hi), alpha = 0.5) +
-        geom_line(data = analysis_result, aes(ymin = y_lo, ymax = y_hi)) +
+        geom_ribbon(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5), alpha = 0.5) +
+        geom_line(data = analysis_result, aes(ymin = y_q2.5, ymax = y_q97.5)) +
         facet_wrap(vars(Model))
     }
   }
