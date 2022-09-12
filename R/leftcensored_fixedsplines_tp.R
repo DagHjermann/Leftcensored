@@ -113,12 +113,18 @@ lc_fixedsplines_tp <- function(data,
                                set_last_equal_x = NULL
                                ){
   
+  if (k == 1){
+    reference_x <- NULL
+    set_last_equal_x <- NULL
+  }
+  
   if (k <= 2){
     k_jagam <- 3
   } else {
     k_jagam <- k
   }
   
+
   # Rename variables, reorder data and add 'y_comb'    
   dat_ordered1 <- get_ordered_data1(
     data = data, x = x, y = y, uncensored = uncensored, threshold = threshold,
