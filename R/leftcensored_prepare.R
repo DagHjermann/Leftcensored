@@ -77,7 +77,8 @@ lc_prepare <- function(data,
   }
 
   # Remove rows where y lack data
-  result <- subset(data, !is.na(y))
+  result <- subset(data, !is.na(y)) %>%
+    as.data.frame()
   
   # Add new columns
   result$threshold <- as.numeric(NA)
@@ -103,7 +104,6 @@ lc_prepare <- function(data,
   #
   # Values over LOQ
   #
-  result$threshold[!sel_cens] <- min(result$y[!sel_cens]) - 1
   result$uncensored[!sel_cens] <- 1
   
   # Returning resulting data frame
