@@ -428,8 +428,10 @@ get_jagam_object <- function(data_ordered1, data_ordered2, k_jagam = 5,
     jagam_object$jags.ini$b <- c(jagam_object$jags.ini$b[1], jagam_object$jags.ini$b[3])
   }
   
-  if (k_orig >= 4){
+  if (k_orig >= 3){
     jagam_object$jags.data$k <- k_orig
+    jagam_object$jags.data$zero <- NULL
+    jagam_object$jags.data$S1 <- NULL
   }
   
   if (k_orig >= 2){
