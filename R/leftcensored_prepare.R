@@ -90,7 +90,7 @@ lc_prepare <- function(data,
   check <- sum(is.na(result$y))
   if (check > 0){
     warning("Log transformation resulted in ", check,  "NA values. These are deleted from the data.")
-    result <- subset(data, !is.na(y))
+    result <- subset(result, !is.na(y))
   }
   
   
