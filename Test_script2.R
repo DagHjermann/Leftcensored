@@ -1,10 +1,14 @@
 
 #
-# When starting testing
+# When starting testing ----
 #
 if (FALSE){
   library(devtools)
   load_all()
+  
+  packageVersion("mgcv")
+  # was '1.8.38'
+  # after update 12.9.2022: '1.8.40' (see Appendix 2)
   
   # not needed for just running code below
   install()
@@ -456,9 +460,10 @@ ggplot() +
   geom_point(data = dat_cens[!sel_uncens,], aes(x = x, y = cut), shape = 6)
 
 
+# debugonce(lc_fixedsplines_tp)
 test <- lc_fixedsplines_tp(data = dat_cens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
                            measurement_error = "error", 
-                           normalize = TRUE, k = 5, initialize_only = TRUE)
+                           normalize = TRUE, k = 3, initialize_only = TRUE)
 
 #
 # . full tests, no measurement error ----
@@ -543,6 +548,13 @@ test <- lc_fixedsplines_tp(data = data_test_prep,
                            reference_x = 2010)
 
 
+# debugonce(get_jagam_object)
+test <- lc_fixedsplines_tp(data = data_test_prep,
+                           normalize = FALSE, k = 5, raftery = FALSE, measurement_error = "meas_error",
+                           predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                           reference_x = 2010, make_data_only = T)
+str(test$jagam_object$jags.data, 1)
+
 ggplot(test$diff_data, aes(x, y)) +
   geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
   geom_line() +
@@ -558,7 +570,7 @@ ggplot(test$diff_data, aes(x, p)) +
 # . - test all k's ----  
 #
 
-k_values <- 1:7
+k_values <- 1:5
 
 # Note: we hd to set normalize = FALSE
 results_me <- purrr::map(k_values, 
@@ -584,6 +596,62 @@ lc_plot(data_test_prep,  results = test, facet = "wrap")
 ggplot(test$diff_data, aes(x, y)) +
   geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
   geom_line()
+
+
+#
+# . - test all k's, no censored data ----
+#
+
+data_test_prep2 <- data_test_prep %>% filter(uncensored==1)
+
+# Note: we hd to set normalize = FALSE
+results_me2 <- purrr::map(k_values, 
+                         ~lc_fixedsplines_tp(data = data_test_prep2, 
+                                             normalize = FALSE, k = .x, raftery = FALSE, measurement_error = "meas_error", 
+                                             predict_x = seq(min(data_test_prep$x), max((data_test_prep$x))))
+                         
+)
+names(results_me) <- paste("k =", k_values)
+
+# Plot
+lc_plot(data_test_prep2,  results = results_me, facet = "wrap")
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Thin plate splines, censoring, difficult case  ----
+#
+# This is a series that resulted in error when JAGS initialized
+# The reason was that 'prob[j]' in the model became appx. = 1,
+#   result in error about problem with "parent of Z"
+# The solution was to wrap the 'prob[j]' definition in max(..., 0.99) 
+#   I.e. replace
+#   max(pnorm(cut[j], mu[n+j], tau), 0.01)
+#   with
+#   min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# Get one station
+data_all <-  readRDS("../leftcensored_testdata/125_results_2021_04_input/125_dat_all_prep3.rds")
+data_test_prep <- data_all %>%
+  filter(STATION_CODE == "30B" & PARAM == "CB101")
+
+# Plot
+lc_plot(data_test_prep)
+
+data_test_prep$meas_error <- exp(0.3) - 1
+
+
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = data_test_prep,
+                           normalize = FALSE, k = 3, raftery = FALSE, measurement_error = "meas_error",
+                           predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                           reference_x = 2010)
+
+# runjags::failed.jags('output')
+# runjags::failed.jags('data')
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
@@ -632,7 +700,6 @@ test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "un
 # debugonce(lc_fixedsplines_tp)
 test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
                            normalize = TRUE, k = 3, raftery = FALSE)
-
 # Plot
 lc_plot(dat_uncens, threshold = "cut", results = test, facet = "wrap")
 
@@ -640,7 +707,7 @@ lc_plot(dat_uncens, threshold = "cut", results = test, facet = "wrap")
 dat_uncens$error <- 1
 
 ggplot() +
-  geom_pointrange(data = dat_uncens[sel_uncens,], aes(x = x, y = y, ymin = y-error, ymax = y+error))
+  geom_pointrange(data = subset(dat_uncens, uncensored == 1), aes(x = x, y = y, ymin = y-error, ymax = y+error))
 
 
 test <- lc_fixedsplines_tp(data = dat_uncens, x = "x", y = "y", uncensored = "uncensored", threshold = "cut",
@@ -695,6 +762,8 @@ dic1 <- purrr::map_dbl(results, "dic")
 dic2 <- purrr::map_dbl(results_me, "dic")
 plot(k_values, dic1, type = "b", ylim = range(dic1, dic2))
 lines(k_values, dic2, type = "b", pch = 19)
+
+
 
 
 
@@ -1011,6 +1080,138 @@ summary(mod2)$sigma
 
 
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Preprocessing ----
+#
+# - Following Rob's rules 
+# - See "Refinements" on https://dome.ices.dk/ohat/trDocuments/2021/help_methods_less_thans.html  
+#
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
+#
+# . - test rule 1+2 ----
+#
+
+#
+# Using test data
+#
+
+# Make 'base' test data to use for the testthat tests
+test_data_base <- data.frame(
+  x = rep(2009:2020, each = 3),
+  threshold = NA,
+  uncensored = 1
+)
+test_data_base$y <- 3 + (test_data_base$x-2009)*0.5 + rnorm(12*3)
+
+# saveRDS(test_data_base, "tests/testthat/fixtures/test_data_clean.rds")
+
+lc_plot(test_data_base)  
+load_all()
+
+# debugonce(lc_clean)
+test <- lc_clean1(test_data_base)  
+
+# set_x_to_censored() is defined in tests/testthat/fixtures
+
+test_data_1 <- test_data_base %>% set_x_to_censored(c(2010:2011, 2013, 2016))
+test_data_2 <- test_data_base %>% set_x_to_censored(c(2010:2011, 2013, 2016:2019))
+test_data_3 <- test_data_base %>% set_x_to_censored(c(2010:2016))
+test_data_4 <- test_data_base %>% set_x_to_censored(c(2009, 2012:2016))
+test_data_5 <- test_data_base %>% set_x_to_censored(c(2009:2013))
+lc_plot(test_data_1)  
+
+#
+# Test lc_clean1
+#
+
+test <- lc_clean1(test_data_1)  
+# No changes made to the data (lc_clean1)
+
+test <- lc_clean1(test_data_2)  
+# Deleted data with x < 2019 (30 rows of data)
+# Final data has 2 unique x values (1 with uncensored data), and 6 rows of data.
+
+test <- lc_flag1(test_data_2)  
+
+test <- lc_clean1(test_data_3)  
+# Deleted data with x < 2013 (12 rows of data)
+# Final data has 8 unique x values (4 with uncensored data), and 24 rows of data.
+
+# Deleted data with x < 2013 (12 rows of data)
+
+# c(2010:2011, 2013, 2016:2019)
+# Deleted data with x < 2013 (12 rows of data)
+
+
+#
+# Test lc_clean2
+#
+
+test <- lc_clean2(test_data_1)  
+test <- lc_clean2(test_data_2)  
+test <- lc_clean2(test_data_3)  
+# No changes made to the data (lc_clean1)
+
+test <- lc_clean2(test_data_4)  
+test <- lc_clean2(test_data_5)  
+
+
+#
+# . - test rule 3: setting the last years to constant ----
+#
+# With real data
+#
+
+dat_all <- readRDS("../../seksjon 212/Milkys2_pc//Files_from_Jupyterhub_2021/Raw_data/109_adjusted_data_2022-06-04.rds")
+
+dat <- dat_all %>%
+  filter(PARAM %in% "HBCDB", 
+         STATION_CODE %in% "13B")
+
+
+# Prepare data
+# debugonce(lc_prepare)
+data_test_prep <- lc_prepare(dat, 
+                             x = "MYEAR",
+                             y = "VALUE_WW", 
+                             censored = "FLAG1",
+                             log = TRUE,
+                             keep_original_columns = TRUE)
+data_test_prep$meas_error <- exp(0.3) - 1
+
+# Plot
+lc_plot(data_test_prep, sampleinfo = TRUE)  
+
+last_year_with_uncens <- max(subset(data_test_prep, uncensored %in% 1)$x)
+
+# debugonce(lc_fixedsplines_tp)
+test <- lc_fixedsplines_tp(data = data_test_prep,
+                           normalize = FALSE, k = 2, raftery = FALSE, measurement_error = "meas_error",
+                           predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                           reference_x = last_year_with_uncens, set_last_equal_x = last_year_with_uncens)
+
+test <- lc_fixedsplines_tp(data = data_test_prep,
+                           normalize = FALSE, k = 1, raftery = FALSE, measurement_error = "meas_error",
+                           predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                           reference_x = last_year_with_uncens, set_last_equal_x = last_year_with_uncens)
+
+
+ggplot(test$plot_data, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
+  geom_line()
+
+ggplot(test$diff_data, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
+  geom_line() +
+  geom_point(aes(color = p_category))
+
+
+
+
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
@@ -1147,7 +1348,7 @@ lc_plot(dat_sim,
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
-# Appendix: Test log-likelihood ----
+# Appendix 1: Test log-likelihood ----
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
@@ -1180,5 +1381,74 @@ mc2d::dbern(1, prob)
 log(mc2d::dbern(1, prob))
 
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Appendix 2: Model and data output of mgcv::jagam in mgcv_1.8-38 (Windows) vs. 1.8-39 (Linux)  ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
+The jagam reults differ only for k = 3, not k = 4
+
+Results of jagam for 
+y_comb ~ s(x, bs = "tp", k = 3)
+
+#
+#  mgcv_1.8-38 (Windows)
+#
+
+model {                                                        
+  mu <- X %*% b ## expected response                           
+  for (i in 1:n) { y[i] ~ dnorm(mu[i],tau) } ## response      
+  scale <- 1/tau ## convert tau to standard GLM scale          
+  tau ~ dgamma(.05,.005) ## precision parameter prior          
+  ## Parametric effect priors CHECK tau=1/21^2 is appropriate!
+  for (i in 1:1) { b[i] ~ dnorm(0,0.0022) }                    
+  ## prior for s(x)...                                         
+  K1 <- S1[1:2,1:2] * lambda[1]  + S1[1:2,3:4] * lambda[2]    
+  b[2:3] ~ dmnorm(zero[2:3],K1)                                
+  ## smoothing parameter priors CHECK...                       
+  for (i in 1:2) {                                            
+    lambda[i] ~ dgamma(.05,.005)                               
+    rho[i] <- log(lambda[i])                                   
+  }                                                           
+}  
+
+Data:
+  List of 5
+$ y   : num [1:316(1d)] 0.262 -0.844 0.916 -0.713 -1.309 ...
+$ n   : int 316
+$ X   : num [1:316, 1:3] 1 1 1 1 1 1 1 1 1 1 ...
+..- attr(*, "dimnames")=List of 2
+$ S1  : num [1:2, 1:4] 1.73e+01 1.01e-13 1.01e-13 5.85e-28 0.00 ...
+$ zero: num [1:3] 0 0 0
+
+
+#
+#  mgcv_1.8-39 (Linux)
+#
+
+model {                                                        
+  mu <- X %*% b ## expected response                          
+  for (i in 1:n) { y[i] ~ dnorm(mu[i],tau) } ## response       
+  scale <- 1/tau ## convert tau to standard GLM scale         
+  tau ~ dgamma(.05,.005) ## precision parameter prior          
+  ## Parametric effect priors CHECK tau=1/12^2 is appropriate!
+  for (i in 1:1) { b[i] ~ dnorm(0,0.0068) }                    
+  ## prior for s(x)...                                        
+  for (i in c(2)) { b[i] ~ dnorm(0, lambda[1]) }               
+  for (i in c(3)) { b[i] ~ dnorm(0, lambda[2]) }              
+  ## smoothing parameter priors CHECK...                       
+  for (i in 1:2) {                                            
+    lambda[i] ~ dgamma(.05,.005)                               
+    rho[i] <- log(lambda[i])                                  
+  }   
+  
+  Data: 
+    List of 3
+  $ y: num [1:80(1d)] 0.24 0.305 0.249 0.98 3.31 0.685 0.604 0.302 0.341 0.284 ...
+  $ n: int 80
+  $ X: num [1:80, 1:3] 1 1 1 1 1 1 1 1 1 1 ...
+  
+  
+  
 

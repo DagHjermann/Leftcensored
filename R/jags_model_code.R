@@ -17,7 +17,7 @@ model {
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
-    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+    prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
   }  
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -48,7 +48,7 @@ model {
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
-    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+    prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
   }  
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -77,7 +77,7 @@ model {
   for (i in 1:n) { y[i] ~ dnorm(mu[i], tau) } ## response 
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
-    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+    prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
   }  
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -110,10 +110,10 @@ model {
     }  
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
-    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+    prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
   }  
   scale <- 1/tau ## convert tau to standard GLM scale
-  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  tau ~ dgamma(.05,.005) ## precision parameter prior   
   ## Parametric effect priors CHECK tau=1/79^2 is appropriate!
   for (i in 1:1) { b[i] ~ dnorm(0,0.00016) }
   ## prior for s(x2)... 
@@ -143,7 +143,7 @@ model {
     }  
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
-    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+    prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
   }  
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -175,7 +175,7 @@ model {
     }  
   for (j in 1:m) {
     Z[j] ~ dbern(prob[j])
-    prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+    prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
   }  
   scale <- 1/tau ## convert tau to standard GLM scale
   tau ~ dgamma(.05,.005) ## precision parameter prior 
@@ -198,7 +198,7 @@ model {
 # Code: as censored, just deleting the 4 lines:
 # for (j in 1:m) {
 #   Z[j] ~ dbern(prob[j])
-#   prob[j] <- max(pnorm(cut[j], mu[n+j], tau), 0.01)
+#   prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
 # }  
 #
 # and not supplying "cut", "Z" and "m" in the data, see get_jagam_object
