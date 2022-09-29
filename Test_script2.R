@@ -620,7 +620,9 @@ lc_plot(data_test_prep2,  results = results_me, facet = "wrap")
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
-# Thin plate splines, censoring, difficult case  ----
+# Difficult case  ----
+#
+# Thin plate splines, censoring
 #
 # This is a series that resulted in error when JAGS initialized
 # The reason was that 'prob[j]' in the model became appx. = 1,
@@ -637,12 +639,16 @@ lc_plot(data_test_prep2,  results = results_me, facet = "wrap")
 data_all <-  readRDS("../leftcensored_testdata/125_results_2021_04_input/125_dat_all_prep3.rds")
 data_test_prep <- data_all %>%
   filter(STATION_CODE == "30B" & PARAM == "CB101")
+data_test_prep$meas_error <- exp(0.3) - 1
+
+# data_test_prep <- data_all %>%
+#   filter(STATION_CODE == "19N" & PARAM == "CB118" & TISSUE_NAME %in% "Egg")
+# data_test_prep$meas_error <- exp(0.3) - 1
 
 # Plot
 lc_plot(data_test_prep)
 
 data_test_prep$meas_error <- exp(0.3) - 1
-
 
 # debugonce(lc_fixedsplines_tp)
 test <- lc_fixedsplines_tp(data = data_test_prep,
@@ -652,6 +658,56 @@ test <- lc_fixedsplines_tp(data = data_test_prep,
 
 # runjags::failed.jags('output')
 # runjags::failed.jags('data')
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# HG WWa 36B ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+data_all <-  readRDS("../../seksjon 212/Milkys2_pc/Files_from_Jupyterhub_2021/Raw_data/109_adjusted_data_2022-09-23.rds")
+
+data_test_orig <- data_all %>%
+  filter(STATION_CODE == "36B" & PARAM == "HG" & TISSUE_NAME %in% "Muskel")
+
+ggplot(data_test_orig, aes(MYEAR, VALUE_WWa))+
+  geom_point()
+
+# Prepare data
+# debugonce(lc_prepare)
+data_test_prep <- lc_prepare(data_test_orig, 
+                             x = "MYEAR",
+                             y = "VALUE_WWa", 
+                             censored = "FLAG1",
+                             log = TRUE,
+                             keep_original_columns = TRUE)
+
+lc_plot(data_test_prep)
+
+# 20% measurement error
+data_test_prep$meas_error <- exp(0.2) - 1
+
+table(data_test_prep$uncensored)
+
+# Delete the 2 under LOQ
+data_test_prep2 <- data_test_prep %>%
+  filter(uncensored == 1)
+
+# debugonce(lc_fixedsplines_tp)
+model2 <- lc_fixedsplines_tp(data = data_test_prep2,
+                             normalize = FALSE, k = 2, raftery = FALSE, measurement_error = "meas_error",
+                             predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                             reference_x = 2021)
+model3 <- lc_fixedsplines_tp(data = data_test_prep2,
+                           normalize = FALSE, k = 3, raftery = FALSE, measurement_error = "meas_error",
+                           predict_x = seq(min(data_test_prep$x), max(data_test_prep$x)),
+                           reference_x = 2021)
+lc_plot(data_test_prep, list(k2 = model2, k3 = model3))
+lc_plot(data_test_prep, results = list(k2 = model2, k3 = model3))  
+
+str(model3, 1)
+str(model3$diff_data, 1)
+View(model3$diff_data)
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
@@ -1443,12 +1499,11 @@ model {
     rho[i] <- log(lambda[i])                                  
   }   
   
-  Data: 
-    List of 3
-  $ y: num [1:80(1d)] 0.24 0.305 0.249 0.98 3.31 0.685 0.604 0.302 0.341 0.284 ...
-  $ n: int 80
-  $ X: num [1:80, 1:3] 1 1 1 1 1 1 1 1 1 1 ...
-  
+  # Data: 
+  #   List of 3
+  # $ y: num [1:80(1d)] 0.24 0.305 0.249 0.98 3.31 0.685 0.604 0.302 0.341 0.284 ...
+  # $ n: int 80
+  # $ X: num [1:80, 1:3] 1 1 1 1 1 1 1 1 1 1 ...
   
   
 
